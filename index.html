@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meteostanica Hrad</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --cream: #F3E3E2;
+      --crimson: #4B0000;
+      --black: #0C0C1E;
+      --navy: #1B2E3C;
+      --cream-dim: #d9c9c8;
+    }
+
+    body {
+      background: var(--cream);
+      color: var(--black);
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-weight: 300;
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--navy);
+      color: var(--cream);
+      padding: 0 40px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: stretch;
+      border-bottom: 3px solid var(--crimson);
+    }
+
+    .header-title {
+      padding: 22px 0;
+      border-right: 1px solid rgba(243,227,226,.1);
+    }
+
+    .header-title h1 {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--cream);
+    }
+
+    .header-title p {
+      font-size: .72rem;
+      color: var(--cream-dim);
+      letter-spacing: 1px;
+      margin-top: 3px;
+      opacity: .6;
+    }
+
+    .header-status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 0 0 32px;
+    }
+
+    #dot {
+      width: 6px; height: 6px;
+      background: var(--cream);
+      animation: blink 2s step-end infinite;
+    }
+
+    #dot.error { background: #ff4444; animation: none; }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    #last-update {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .7rem;
+      color: var(--cream-dim);
+      opacity: .7;
+    }
+
+    /* ── MAIN ── */
+    main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 40px 60px;
+    }
+
+    /* ── RANGE BAR ── */
+    .range-bar {
+      display: flex;
+      gap: 0;
+      padding: 28px 0 32px;
+      border-bottom: 1px solid var(--cream-dim);
+      margin-bottom: 36px;
+    }
+
+    .range-btn {
+      background: none;
+      border: 1px solid var(--cream-dim);
+      border-right: none;
+      color: var(--navy);
+      padding: 7px 20px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .72rem;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: background .1s, color .1s;
+    }
+
+    .range-btn:last-child { border-right: 1px solid var(--cream-dim); }
+
+    .range-btn.active {
+      background: var(--crimson);
+      color: var(--cream);
+      border-color: var(--crimson);
+    }
+
+    .range-btn:hover:not(.active) {
+      background: var(--cream-dim);
+    }
+
+    /* ── METRICS GRID ── */
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      border-top: 2px solid var(--black);
+      border-left: 1px solid var(--cream-dim);
+      margin-bottom: 48px;
+    }
+
+    @media (max-width: 1100px) {
+      .metrics { grid-template-columns: repeat(4, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .metrics { grid-template-columns: repeat(2, 1fr); }
+      main { padding: 0 20px 40px; }
+      header { padding: 0 20px; }
+    }
+
+    .metric {
+      border-right: 1px solid var(--cream-dim);
+      border-bottom: 1px solid var(--cream-dim);
+      padding: 20px 18px 18px;
+    }
+
+    .metric-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .62rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--navy);
+      opacity: .5;
+      margin-bottom: 10px;
+    }
+
+    .metric-value {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 1.9rem;
+      font-weight: 600;
+      color: var(--black);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .metric-value.crimson { color: var(--crimson); }
+
+    .metric-unit {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .65rem;
+      color: var(--navy);
+      opacity: .45;
+    }
+
+    .metric-sub {
+      font-size: .72rem;
+      color: var(--navy);
+      opacity: .5;
+      margin-top: 4px;
+    }
+
+    /* skeleton */
+    .skeleton {
+      display: inline-block;
+      width: 60%;
+      height: 1.9rem;
+      background: linear-gradient(90deg, var(--cream-dim) 25%, #e8d4d3 50%, var(--cream-dim) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+    }
+
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ── CHARTS ── */
+    .section-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .65rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--navy);
+      opacity: .4;
+      margin-bottom: 16px;
+    }
+
+    .charts {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      border-top: 2px solid var(--black);
+      border-left: 1px solid var(--cream-dim);
+    }
+
+    @media (max-width: 800px) {
+      .charts { grid-template-columns: 1fr; }
+    }
+
+    .chart-cell {
+      border-right: 1px solid var(--cream-dim);
+      border-bottom: 1px solid var(--cream-dim);
+      padding: 24px 22px 20px;
+    }
+
+    .chart-cell.full { grid-column: 1 / -1; }
+
+    .chart-cell h3 {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .62rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--navy);
+      opacity: .45;
+      margin-bottom: 16px;
+    }
+
+    .chart-cell canvas { max-height: 180px; }
+
+    /* ── TABS ── */
+    .tabs {
+      background: var(--navy);
+      display: flex;
+      padding: 0 40px;
+      gap: 0;
+      border-bottom: 3px solid var(--crimson);
+    }
+
+    .tab {
+      background: none;
+      border: none;
+      border-top: 3px solid transparent;
+      color: var(--cream);
+      opacity: .45;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .72rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 14px 24px;
+      cursor: pointer;
+      transition: opacity .15s;
+      margin-bottom: -3px;
+    }
+
+    .tab:hover { opacity: .75; }
+
+    .tab.active {
+      opacity: 1;
+      border-top-color: var(--crimson);
+      background: var(--crimson);
+    }
+
+    /* ── CAMERAS ── */
+    .cameras-section {
+      margin-top: 48px;
+      border-top: 2px solid var(--black);
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+      border-left: 1px solid var(--cream-dim);
+    }
+
+    .camera-card {
+      border-right: 1px solid var(--cream-dim);
+      border-bottom: 1px solid var(--cream-dim);
+    }
+
+    .camera-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .62rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--navy);
+      opacity: .45;
+      padding: 14px 18px 10px;
+    }
+
+    .camera-img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 16/9;
+      object-fit: cover;
+      background: var(--cream-dim);
+    }
+
+    .cameras-placeholder {
+      padding: 60px 40px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .8rem;
+      color: var(--navy);
+      opacity: .4;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-title">
+    <h1>Meteostanica — Hrad</h1>
+    <p>Automatická meteorologická stanica</p>
+  </div>
+  <div class="header-status">
+    <div id="dot"></div>
+    <span id="last-update">Načítavam…</span>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="nitra">Nitra</button>
+  <button class="tab" data-tab="skola">Škola</button>
+</nav>
+
+<main>
+
+  <div id="tab-nitra">
+  <div class="range-bar">
+    <button class="range-btn active" data-hours="6">6h</button>
+    <button class="range-btn" data-hours="12">12h</button>
+    <button class="range-btn" data-hours="24">24h</button>
+    <button class="range-btn" data-hours="48">48h</button>
+    <button class="range-btn" data-hours="168">7d</button>
+  </div>
+
+  <div class="metrics">
+
+    <div class="metric">
+      <div class="metric-label">Teplota</div>
+      <div class="metric-value crimson" id="c-temp"><span class="skeleton"></span></div>
+      <div class="metric-unit">°C</div>
+      <div class="metric-sub" id="c-feels">Pocitová —</div>
+    </div>
+
+    <div class="metric">
+      <div class="metric-label">Vlhkosť</div>
+      <div class="metric-value" id="c-hum"><span class="skeleton"></span></div>
+      <div class="metric-unit">%</div>
+    </div>
+
+    <div class="metric">
+      <div class="metric-label">Tlak</div>
+      <div class="metric-value" id="c-pres"><span class="skeleton"></span></div>
+      <div class="metric-unit">hPa</div>
+    </div>
+
+    <div class="metric">
+      <div class="metric-label">Vietor</div>
+      <div class="metric-value" id="c-wind"><span class="skeleton"></span></div>
+      <div class="metric-unit">m/s</div>
+      <div class="metric-sub" id="c-wdir">—</div>
+    </div>
+
+    <div class="metric">
+      <div class="metric-label">Zrážky 1h</div>
+      <div class="metric-value" id="c-rain"><span class="skeleton"></span></div>
+      <div class="metric-unit">mm</div>
+      <div class="metric-sub" id="c-snow">Sneh —</div>
+    </div>
+
+    <div class="metric">
+      <div class="metric-label">Oblačnosť</div>
+      <div class="metric-value" id="c-cloud"><span class="skeleton"></span></div>
+      <div class="metric-unit">%</div>
+    </div>
+
+    <div class="metric">
+      <div class="metric-label">GHI</div>
+      <div class="metric-value" id="c-ghi"><span class="skeleton"></span></div>
+      <div class="metric-unit">W/m²</div>
+      <div class="metric-sub" id="c-cghi">Clear sky —</div>
+    </div>
+
+  </div>
+
+  <div class="charts">
+    <div class="chart-cell">
+      <h3>Teplota & Pocitová teplota</h3>
+      <canvas id="ch-temp"></canvas>
+    </div>
+    <div class="chart-cell">
+      <h3>Vlhkosť & Tlak</h3>
+      <canvas id="ch-hum"></canvas>
+    </div>
+    <div class="chart-cell">
+      <h3>Rýchlosť vetra</h3>
+      <canvas id="ch-wind"></canvas>
+    </div>
+    <div class="chart-cell">
+      <h3>Zrážky</h3>
+      <canvas id="ch-rain"></canvas>
+    </div>
+    <div class="chart-cell full">
+      <h3>Slnečné žiarenie GHI vs. Clear Sky</h3>
+      <canvas id="ch-ghi"></canvas>
+    </div>
+  </div>
+
+  <div id="cameras" class="cameras-section">
+    <div class="camera-card">
+      <div class="camera-label">Pohľad na centrum</div>
+      <img id="cam-0" class="camera-img" src="" alt="Centrum" />
+    </div>
+    <div class="camera-card">
+      <div class="camera-label">Pohľad na Mlynárce</div>
+      <img id="cam-1" class="camera-img" src="" alt="Cam 1" />
+    </div>
+  </div>
+
+  </div><!-- #tab-nitra -->
+
+  <div id="tab-skola" style="display:none">
+
+    <div class="metrics" style="margin-top:36px">
+
+      <div class="metric">
+        <div class="metric-label">Dvere</div>
+        <div class="metric-value crimson" id="s-door">—</div>
+        <div class="metric-sub" id="s-door-time">—</div>
+        <div class="metric-sub" id="s-door-bat">—</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">Osvetlenie</div>
+        <div class="metric-value" id="s-lux">—</div>
+        <div class="metric-unit">lux</div>
+        <div class="metric-sub" id="s-lux-bat">—</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">Teplota</div>
+        <div class="metric-value" id="s-amb-temp">—</div>
+        <div class="metric-unit">°C</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">Vlhkosť</div>
+        <div class="metric-value" id="s-amb-hum">—</div>
+        <div class="metric-unit">%</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">CO₂</div>
+        <div class="metric-value crimson" id="s-amb-co2">—</div>
+        <div class="metric-unit">ppm</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">TVOC</div>
+        <div class="metric-value" id="s-amb-tvoc">—</div>
+        <div class="metric-unit">ppb</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">PIR pohyb</div>
+        <div class="metric-value" id="s-amb-pir">—</div>
+        <div class="metric-sub" id="s-amb-bat">—</div>
+      </div>
+
+    </div>
+
+    <div class="charts" style="margin-top:48px">
+      <div class="chart-cell">
+        <h3>CO₂ (ppm)</h3>
+        <canvas id="ch-co2"></canvas>
+      </div>
+      <div class="chart-cell">
+        <h3>Teplota & Vlhkosť</h3>
+        <canvas id="ch-skola-temp"></canvas>
+      </div>
+      <div class="chart-cell">
+        <h3>Osvetlenie (lux)</h3>
+        <canvas id="ch-lux"></canvas>
+      </div>
+      <div class="chart-cell">
+        <h3>TVOC (ppb)</h3>
+        <canvas id="ch-tvoc"></canvas>
+      </div>
+      <div class="chart-cell full">
+        <h3>Dvere — história (0 = zatvorené, 1 = otvorené)</h3>
+        <canvas id="ch-door"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<script>
+const API = 'https://projekttb.sksnr.sk/data/api.php';
+let activeHours = 6;
+let charts = {};
+
+const DIRS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+function degToDir(d) { return DIRS[Math.round(d / 22.5) % 16]; }
+function fmt(v, dec=1) { return v == null ? '—' : Number(v).toFixed(dec); }
+function limitForHours(h) { return Math.ceil(h * 4); }
+
+async function fetchData(limit) {
+  const res = await fetch(`${API}?source=0&sort=timestamp&dir=desc&limit=${limit}`, {
+    headers: { Authorization: 'Basic ' + btoa('sks:kolbe') }
+  });
+  if (!res.ok) throw new Error(res.status);
+  const json = await res.json();
+  return json.rows.reverse();
+}
+
+function setCard(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = val;
+}
+
+function updateCurrentCards(row) {
+  setCard('c-temp', fmt(row.temperature));
+  setCard('c-feels', 'Pocitová ' + fmt(row.feels_like) + ' °C');
+  setCard('c-hum', fmt(row.humidity, 0));
+  setCard('c-pres', fmt(row.pressure, 0));
+  setCard('c-wind', fmt(row.wind_speed));
+  setCard('c-wdir', degToDir(row.wind_direction) + ' ' + fmt(row.wind_direction, 0) + '°');
+  setCard('c-rain', fmt(row.rain_1h));
+  setCard('c-snow', 'Sneh ' + fmt(row.snow_1h) + ' mm');
+  setCard('c-cloud', fmt(row.cloudiness, 0));
+  setCard('c-ghi', fmt(row.ghi, 0));
+  setCard('c-cghi', 'Clear sky ' + fmt(row.clear_sky_ghi, 0) + ' W/m²');
+
+  const arrow = document.getElementById('wind-arrow');
+  if (arrow) arrow.style.transform = `rotate(${row.wind_direction}deg)`;
+
+  document.getElementById('last-update').textContent = row.timestamp;
+  document.getElementById('dot').className = '';
+}
+
+const C = {
+  crimson: '#4B0000',
+  navy: '#1B2E3C',
+  cream: '#F3E3E2',
+  dim: '#d9c9c8',
+  mid: '#8a7f7f',
+};
+
+const CHART_OPTS = {
+  responsive: true,
+  maintainAspectRatio: true,
+  animation: { duration: 300 },
+  interaction: { mode: 'index', intersect: false },
+  plugins: {
+    legend: { labels: { color: C.navy, boxWidth: 10, font: { family: 'IBM Plex Mono', size: 10 } } },
+    tooltip: {
+      backgroundColor: '#0C0C1E',
+      titleColor: '#F3E3E2',
+      bodyColor: '#F3E3E2',
+      borderColor: '#4B0000',
+      borderWidth: 1,
+      titleFont: { family: 'IBM Plex Mono', size: 11 },
+      bodyFont: { family: 'IBM Plex Mono', size: 11 },
+      padding: 10,
+    }
+  },
+  scales: {
+    x: {
+      ticks: { color: C.mid, maxTicksLimit: 7, maxRotation: 0, font: { family: 'IBM Plex Mono', size: 9 } },
+      grid: { color: C.dim }
+    },
+    y: {
+      ticks: { color: C.mid, font: { family: 'IBM Plex Mono', size: 9 } },
+      grid: { color: C.dim }
+    }
+  }
+};
+
+function makeChart(id, config) {
+  const ctx = document.getElementById(id).getContext('2d');
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(ctx, config);
+}
+
+function buildCharts(rows) {
+  const labels = rows.map(r => {
+    if (activeHours <= 24) return r.timestamp.slice(11, 16);          // HH:MM
+    if (activeHours <= 48) return r.timestamp.slice(8, 13).replace(' ', ' '); // DD HH:MM
+    return r.timestamp.slice(5, 16).replace('T', ' ');                // MM-DD HH:MM
+  });
+
+  makeChart('ch-temp', {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: 'Teplota °C', data: rows.map(r => r.temperature),
+        borderColor: C.crimson, backgroundColor: 'rgba(75,0,0,.06)', fill: true,
+        tension: .3, pointRadius: 0, borderWidth: 1.5 },
+      { label: 'Pocitová °C', data: rows.map(r => r.feels_like),
+        borderColor: C.navy, backgroundColor: 'transparent', fill: false,
+        tension: .3, pointRadius: 0, borderWidth: 1, borderDash: [4,3] }
+    ]},
+    options: CHART_OPTS
+  });
+
+  makeChart('ch-hum', {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: 'Vlhkosť %', data: rows.map(r => r.humidity),
+        borderColor: C.navy, backgroundColor: 'rgba(27,46,60,.06)', fill: true,
+        tension: .3, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y' },
+      { label: 'Tlak hPa', data: rows.map(r => r.pressure),
+        borderColor: C.crimson, backgroundColor: 'transparent', fill: false,
+        tension: .3, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y2' }
+    ]},
+    options: { ...CHART_OPTS, scales: {
+      ...CHART_OPTS.scales,
+      y:  { ...CHART_OPTS.scales.y, position: 'left' },
+      y2: { ...CHART_OPTS.scales.y, position: 'right', grid: { display: false } }
+    }}
+  });
+
+  makeChart('ch-wind', {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: 'Rýchlosť m/s', data: rows.map(r => r.wind_speed),
+        borderColor: C.navy, backgroundColor: 'rgba(27,46,60,.06)', fill: true,
+        tension: .3, pointRadius: 0, borderWidth: 1.5 }
+    ]},
+    options: CHART_OPTS
+  });
+
+  makeChart('ch-rain', {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'Dážď mm/h', data: rows.map(r => r.rain_1h),
+        backgroundColor: 'rgba(27,46,60,.5)', borderColor: C.navy, borderWidth: 1 }
+    ]},
+    options: CHART_OPTS
+  });
+
+  makeChart('ch-ghi', {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: 'GHI W/m²', data: rows.map(r => r.ghi),
+        borderColor: C.crimson, backgroundColor: 'rgba(75,0,0,.08)', fill: true,
+        tension: .4, pointRadius: 0, borderWidth: 1.5 },
+      { label: 'Clear Sky W/m²', data: rows.map(r => r.clear_sky_ghi),
+        borderColor: C.navy, backgroundColor: 'transparent', fill: false,
+        tension: .4, pointRadius: 0, borderWidth: 1, borderDash: [5,4] }
+    ]},
+    options: CHART_OPTS
+  });
+}
+
+async function refresh() {
+  try {
+    const rows = await fetchData(limitForHours(activeHours));
+    if (!rows.length) return;
+    updateCurrentCards(rows[rows.length - 1]);
+    buildCharts(rows);
+  } catch (e) {
+    console.error(e);
+    document.getElementById('dot').className = 'error';
+    document.getElementById('last-update').textContent = 'Chyba načítania';
+  }
+}
+
+document.querySelectorAll('.range-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeHours = parseInt(btn.dataset.hours);
+    refresh();
+  });
+});
+
+refresh();
+setInterval(refresh, 60_000);
+
+const CAM_URL = 'https://projekttb.sksnr.sk/data/camera.php?cam=0';
+const AUTH_HDR = { Authorization: 'Basic ' + btoa('sks:kolbe') };
+
+async function refreshCamera() {
+  try {
+    const res = await fetch(CAM_URL + '&_=' + Date.now(), { headers: AUTH_HDR });
+    const blob = await res.blob();
+    const img = document.getElementById('cam-0');
+    const old = img.src;
+    img.src = URL.createObjectURL(blob);
+    if (old.startsWith('blob:')) URL.revokeObjectURL(old);
+  } catch(e) { console.error('cam', e); }
+}
+
+const CAMERAS = [
+  { id: 'cam-0', url: 'https://projekttb.sksnr.sk/data/camera.php?cam=0' },
+  { id: 'cam-1', url: 'https://projekttb.sksnr.sk/data/camera.php?cam=1' },
+];
+
+async function refreshCamera(cam) {
+  try {
+    const res = await fetch(cam.url + '&_=' + Date.now(), { headers: AUTH_HDR });
+    const blob = await res.blob();
+    const img = document.getElementById(cam.id);
+    if (!img) return;
+    const old = img.src;
+    img.src = URL.createObjectURL(blob);
+    if (old.startsWith('blob:')) URL.revokeObjectURL(old);
+  } catch(e) { console.error('cam', e); }
+}
+
+function refreshAllCameras() { CAMERAS.forEach(refreshCamera); }
+refreshAllCameras();
+setInterval(refreshAllCameras, 10_000);
+
+// ── Škola sensors ──
+async function fetchSkola() {
+  try {
+    const [rDoor, rLux, rAmb] = await Promise.all([
+      fetch(`https://projekttb.sksnr.sk/data/api.php?source=8&sort=timestamp&dir=desc&limit=48`, { headers: AUTH_HDR }),
+      fetch(`https://projekttb.sksnr.sk/data/api.php?source=3&sort=timestamp&dir=desc&limit=48`, { headers: AUTH_HDR }),
+      fetch(`https://projekttb.sksnr.sk/data/api.php?source=1&sort=timestamp&dir=desc&limit=48`, { headers: AUTH_HDR }),
+    ]);
+    const doorData = (await rDoor.json()).rows.reverse();
+    const door = doorData[doorData.length - 1];
+    const luxData = (await rLux.json()).rows.reverse();
+    const ambData = (await rAmb.json()).rows.reverse();
+    const lux = luxData[luxData.length - 1];
+    const amb = ambData[ambData.length - 1];
+
+    // Door
+    const isOpen = door.Exti_pin_level === 'Low';
+    setCard('s-door', isOpen ? 'OTVORENÉ' : 'ZATVORENÉ');
+    document.getElementById('s-door').classList.toggle('crimson', isOpen);
+    setCard('s-door-time', door.timestamp);
+    setCard('s-door-bat', 'Batéria: ' + fmt(door.BatV, 3) + ' V');
+
+    // Lux
+    setCard('s-lux', fmt(lux.ILL_lux, 0));
+    setCard('s-lux-bat', 'Batéria: ' + fmt(lux.BatV, 3) + ' V');
+
+    // Ambient
+    setCard('s-amb-temp', fmt(amb.temperature));
+    setCard('s-amb-hum', fmt(amb.humidity, 0));
+    setCard('s-amb-co2', fmt(amb.co2, 0));
+    setCard('s-amb-tvoc', fmt(amb.tvoc, 2));
+    setCard('s-amb-pir', amb.pir ?? '—');
+    setCard('s-amb-bat', 'Batéria: ' + fmt(amb.battery, 0) + ' %');
+
+    const ambLabels = ambData.map(r => r.timestamp.slice(11, 16));
+    const luxLabels = luxData.map(r => r.timestamp.slice(11, 16));
+
+    makeChart('ch-co2', {
+      type: 'line',
+      data: { labels: ambLabels, datasets: [{
+        label: 'CO₂ ppm', data: ambData.map(r => r.co2),
+        borderColor: C.crimson, backgroundColor: 'rgba(75,0,0,.06)', fill: true,
+        tension: .3, pointRadius: 0, borderWidth: 1.5
+      }]},
+      options: CHART_OPTS
+    });
+
+    makeChart('ch-skola-temp', {
+      type: 'line',
+      data: { labels: ambLabels, datasets: [
+        { label: 'Teplota °C', data: ambData.map(r => r.temperature),
+          borderColor: C.crimson, backgroundColor: 'rgba(75,0,0,.06)', fill: true,
+          tension: .3, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y' },
+        { label: 'Vlhkosť %', data: ambData.map(r => r.humidity),
+          borderColor: C.navy, backgroundColor: 'transparent', fill: false,
+          tension: .3, pointRadius: 0, borderWidth: 1.5, borderDash: [4,3], yAxisID: 'y2' }
+      ]},
+      options: { ...CHART_OPTS, scales: {
+        ...CHART_OPTS.scales,
+        y:  { ...CHART_OPTS.scales.y, position: 'left' },
+        y2: { ...CHART_OPTS.scales.y, position: 'right', grid: { display: false } }
+      }}
+    });
+
+    makeChart('ch-lux', {
+      type: 'line',
+      data: { labels: luxLabels, datasets: [{
+        label: 'Lux', data: luxData.map(r => r.ILL_lux),
+        borderColor: C.navy, backgroundColor: 'rgba(27,46,60,.06)', fill: true,
+        tension: .3, pointRadius: 0, borderWidth: 1.5
+      }]},
+      options: CHART_OPTS
+    });
+
+    makeChart('ch-tvoc', {
+      type: 'line',
+      data: { labels: ambLabels, datasets: [{
+        label: 'TVOC ppb', data: ambData.map(r => r.tvoc),
+        borderColor: C.navy, backgroundColor: 'rgba(27,46,60,.06)', fill: true,
+        tension: .3, pointRadius: 0, borderWidth: 1.5
+      }]},
+      options: CHART_OPTS
+    });
+
+    const doorLabels = doorData.map(r => r.timestamp.slice(11, 16));
+    makeChart('ch-door', {
+      type: 'line',
+      data: { labels: doorLabels, datasets: [{
+        label: 'Dvere', data: doorData.map(r => r.Exti_pin_level === 'Low' ? 1 : 0),
+        borderColor: C.crimson, backgroundColor: 'rgba(75,0,0,.08)', fill: true,
+        stepped: true, pointRadius: 3, pointBackgroundColor: C.crimson, borderWidth: 1.5
+      }]},
+      options: { ...CHART_OPTS, scales: {
+        ...CHART_OPTS.scales,
+        y: { ...CHART_OPTS.scales.y, min: -0.1, max: 1.1, ticks: { ...CHART_OPTS.scales.y.ticks,
+          callback: v => v === 1 ? 'Otvorené' : v === 0 ? 'Zatvorené' : '' } }
+      }}
+    });
+
+  } catch(e) { console.error('skola', e); }
+}
+
+// Tab switching
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const id = tab.dataset.tab;
+    document.querySelectorAll('#tab-nitra, #tab-skola').forEach(el => el.style.display = 'none');
+    document.getElementById('tab-' + id).style.display = '';
+    if (id === 'skola') fetchSkola();
+  });
+});
+
+fetchSkola();
+setInterval(fetchSkola, 10_000);
+</script>
+
+</body>
+</html>
