@@ -560,10 +560,9 @@ body.dark .easy-head h2, body.dark .et-label, body.dark .et-sub { opacity: .92; 
 </header>
 
 <!-- ══ GLOBAL ALERT BANNER ══ -->
-<div id="alert-banner" class="alert-banner" hidden>
+<div id="alert-banner" class="alert-banner" role="status" hidden>
   <span class="alert-icon" aria-hidden="true">⚠</span>
   <span id="alert-text"></span>
-  <button id="alert-close" type="button" aria-label="Zavrieť upozornenie">✕</button>
 </div>
 
 <!-- ══ TABS ══ -->
@@ -1623,21 +1622,16 @@ function evaluateChecks(data) {
   return { worst, actions };
 }
 
-/* Global alert banner — dismissing only hides the CURRENT alert. If the situation
-   changes or escalates (different signature), the banner re-appears automatically. */
-let alertDismissed = false;
-let lastAlertSig = '';
+/* Global alert banner — a live status strip. Always reflects the current
+   environment warning(s); hidden only when everything is OK. (No manual dismiss.) */
 function updateAlertBanner(worst, actions) {
   const banner = $('alert-banner');
   if (!banner) return;
-  const sig = worst + '|' + actions.join('|');
-  if (sig !== lastAlertSig) { alertDismissed = false; lastAlertSig = sig; }
-  if (worst === 'ok' || !actions.length || alertDismissed) { banner.hidden = true; return; }
+  if (worst === 'ok' || !actions.length) { banner.hidden = true; return; }
   banner.hidden = false;
   banner.classList.toggle('warn', worst === 'warn');
   setText('alert-text', actions.join('  ·  '));
 }
-$('alert-close').addEventListener('click', () => { alertDismissed = true; $('alert-banner').hidden = true; });
 
 /* Lightweight always-on poller so the global banner is live on EVERY screen
    (only 2 requests — latest ambient + lux). */
