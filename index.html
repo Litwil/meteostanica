@@ -3,1178 +3,1943 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Meteostanica Hrad</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+  <title>Meteostanica — Hrad · Monitoring v reálnom čase</title>
+  <meta name="description" content="Automatická meteostanica Nitra a monitoring školských priestorov — počasie, kamery, TH senzory 1–20 a prostredie triedy IT v reálnom čase." />
+  <meta name="theme-color" content="#355B7A" />
+  <meta name="color-scheme" content="light dark" />
+
+  <!-- Inline SVG favicon (no binary file needed) -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23355B7A'/%3E%3Crect x='28' y='12' width='8' height='30' rx='4' fill='%23E9F1F8'/%3E%3Ccircle cx='32' cy='46' r='9' fill='%231D6FB8'/%3E%3Crect x='30' y='24' width='4' height='20' fill='%231D6FB8'/%3E%3C/svg%3E" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* ════════════════════════════════════════════════════════
+   Meteostanica — Hrad · stylesheet
+   ════════════════════════════════════════════════════════ */
 
-    :root {
-      --cream: #F3E3E2;
-      --crimson: #4B0000;
-      --black: #0C0C1E;
-      --navy: #1B2E3C;
-      --cream-dim: #d9c9c8;
-    }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    body {
-      background: var(--cream);
-      color: var(--black);
-      font-family: 'IBM Plex Sans', sans-serif;
-      font-weight: 300;
-      min-height: 100vh;
-    }
+:root {
+  /* Light theme — "Meteo Sky": sky blue + coral accent */
+  --cream:      #E9F1F8;  /* page background — pale sky */
+  --surface:    #F5FAFD;  /* cards / panels */
+  --crimson:    #1D6FB8;  /* primary accent — sky blue */
+  --black:      #0E2233;  /* primary ink */
+  --navy:       #355B7A;  /* secondary text + header/tab bar */
+  --cream-dim:  #CCDEEC;  /* borders */
+  --shimmer:    #DCEAF5;  /* skeleton highlight */
 
-    /* ── HEADER ── */
-    header {
-      background: var(--navy);
-      color: var(--cream);
-      padding: 0 40px;
-      display: grid;
-      grid-template-columns: 1fr auto;
-      align-items: stretch;
-      border-bottom: 3px solid var(--crimson);
-    }
+  --ok:    #2E8B6F;
+  --warn:  #E08A1E;
+  --bad:   #DB4A36;       /* coral */
 
-    .header-title {
-      padding: 22px 0;
-      border-right: 1px solid rgba(243,227,226,.1);
-    }
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --sans: 'IBM Plex Sans', system-ui, sans-serif;
+}
 
-    .header-title h1 {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 1rem;
-      font-weight: 600;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--cream);
-    }
+/* Dark theme — "Twilight Harbor": the day's marine ink becomes the night canvas.
+   Deep blue-teal base, luminous azure beacon accent, warm amber/coral for alerts,
+   soft cool-white text, teal-tinted borders. Cohesive day→night pairing, not flat slate. */
+body.dark {
+  --cream:      #0E2233;  /* page background — deep marine night */
+  --surface:    #163041;  /* raised panels (subtle elevation, same hue) */
+  --crimson:    #46A3E0;  /* primary accent — luminous azure */
+  --black:      #EEF3F7;  /* primary text — soft cool-white, not pure white */
+  --navy:       #C7D6E1;  /* muted labels / secondary text — kept bright for legibility */
+  --cream-dim:  #284559;  /* borders — visible but soft, teal-tinted */
+  --shimmer:    #20384A;  /* skeleton highlight */
 
-    .header-title p {
-      font-size: .72rem;
-      color: var(--cream-dim);
-      letter-spacing: 1px;
-      margin-top: 3px;
-      opacity: .6;
-    }
+  --ok:    #34C08A;       /* teal-green */
+  --warn:  #ECAA45;       /* amber */
+  --bad:   #F26B52;       /* warm coral — distinct from the azure accent */
+}
 
-    .header-status {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 0 0 0 32px;
-    }
+html { scroll-behavior: smooth; }
 
-    #dot {
-      width: 6px; height: 6px;
-      background: var(--cream);
-      animation: blink 2s step-end infinite;
-    }
+body {
+  background: var(--cream);
+  color: var(--black);
+  font-family: var(--sans);
+  font-weight: 300;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  transition: background .25s ease, color .25s ease;
+}
 
-    #dot.error { background: #ff4444; animation: none; }
+a { color: var(--crimson); }
 
-    #theme-toggle {
-      background: none;
-      border: 1px solid rgba(243,227,226,.3);
-      color: var(--cream);
-      font-size: .9rem;
-      width: 28px; height: 28px;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      opacity: .6;
-      transition: opacity .15s;
-    }
-    #theme-toggle:hover { opacity: 1; }
+/* ── HEADER ── */
+header {
+  background: var(--navy);
+  color: var(--cream);
+  padding: 0 40px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: stretch;
+  border-bottom: 3px solid var(--crimson);
+}
+body.dark header { background: #0A1A28; }
 
-    /* Dark mode */
-    body.dark {
-      --cream: #1a1a2e;
-      --crimson: #c45c5c;
-      --black: #F3E3E2;
-      --navy: #e0d0cf;
-      --cream-dim: #2e2e4a;
-    }
-    body.dark header, body.dark nav.tabs { background: #0f0f1f; }
-    body.dark .header-title h1,
-    body.dark .header-title p,
-    body.dark #last-update { color: #ffffff; }
-    body.dark .range-btn { color: #e0d0cf; }
-    body.dark .report-action-box { background: rgba(139,0,0,.08); }
+.header-title { padding: 20px 0; border-right: 1px solid rgba(243,227,226,.1); }
+.header-title h1 {
+  font-family: var(--mono);
+  font-size: 1rem; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: #fff;
+}
+.header-title p {
+  font-size: .72rem; color: #d9c9c8;
+  letter-spacing: 1px; margin-top: 3px; opacity: .7;
+}
 
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0; }
-    }
+.header-status { display: flex; align-items: center; gap: 14px; padding-left: 24px; }
+#dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #6fe39a; animation: blink 2s step-end infinite;
+}
+#dot.error { background: #ff4444; animation: none; }
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
 
-    #last-update {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: .7rem;
-      color: var(--cream-dim);
-      opacity: .7;
-    }
+#last-update {
+  font-family: var(--mono); font-size: .7rem;
+  color: #d9c9c8; opacity: .85; white-space: nowrap;
+}
 
-    /* ── MAIN ── */
-    main {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 0 40px 60px;
-    }
+#theme-toggle {
+  background: none; border: 1px solid rgba(243,227,226,.35);
+  color: #fff; font-size: 1rem; width: 30px; height: 30px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  opacity: .7; transition: opacity .15s, background .15s; border-radius: 3px;
+}
+#theme-toggle:hover { opacity: 1; background: rgba(243,227,226,.12); }
 
-    /* ── RANGE BAR ── */
-    .range-bar {
-      display: flex;
-      gap: 0;
-      padding: 28px 0 32px;
-      border-bottom: 1px solid var(--cream-dim);
-      margin-bottom: 36px;
-    }
+/* ── ALERT BANNER ── */
+.alert-banner {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--bad); color: #fff;
+  padding: 11px 40px;
+  font-family: var(--mono); font-size: .78rem; letter-spacing: .5px;
+}
+.alert-banner.warn { background: var(--warn); }
+.alert-banner .alert-icon { font-size: 1rem; }
+.alert-banner #alert-text { flex: 1; line-height: 1.4; }
+.alert-banner #alert-close {
+  background: none; border: 1px solid rgba(255,255,255,.5); color: #fff;
+  width: 24px; height: 24px; cursor: pointer; border-radius: 3px;
+  flex-shrink: 0; transition: background .15s;
+}
+.alert-banner #alert-close:hover { background: rgba(255,255,255,.18); }
 
-    .range-btn {
-      background: none;
-      border: 1px solid var(--cream-dim);
-      border-right: none;
-      color: var(--navy);
-      padding: 7px 20px;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: .72rem;
-      letter-spacing: 1px;
-      cursor: pointer;
-      transition: background .1s, color .1s;
-    }
+/* ── TABS ── */
+.tabs {
+  background: var(--navy);
+  display: flex; padding: 0 40px; gap: 0;
+  border-bottom: 3px solid var(--crimson);
+  overflow-x: auto; scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+body.dark .tabs { background: #0A1A28; }
+/* The nav bar is dark in BOTH themes, but --cream flips dark — keep tab text light */
+body.dark .tab { color: #AEC6D6; }
+/* On the luminous azure accent, dark text reads far better than white */
+body.dark .tab.active,
+body.dark .range-btn.active { color: #08202E; }
 
-    .range-btn:last-child { border-right: 1px solid var(--cream-dim); }
+/* Muted labels (TEPLOTA, VLHKOSŤ, section headers, sub-text…) are dimmed via low
+   opacity in light mode; that's too dark on the marine canvas, so brighten in dark. */
+body.dark .metric-label,
+body.dark .metric-unit,
+body.dark .metric-sub,
+body.dark .section-label,
+body.dark .chart-cell h3,
+body.dark .screen-title,
+body.dark .updated,
+body.dark .si-name,
+body.dark .camera-label,
+body.dark .camera-foot,
+body.dark .th-card .th-name,
+body.dark .th-card .th-hum,
+body.dark .door-stats,
+body.dark .door-events li,
+body.dark .site-footer { opacity: .92; }
 
-    .range-btn.active {
-      background: var(--crimson);
-      color: var(--cream);
-      border-color: var(--crimson);
-    }
+.tab {
+  background: none; border: none; border-top: 3px solid transparent;
+  color: var(--cream); opacity: .5;
+  font-family: var(--mono); font-size: .72rem;
+  letter-spacing: 2px; text-transform: uppercase;
+  padding: 14px 26px; cursor: pointer;
+  transition: opacity .15s, background .15s; margin-bottom: -3px;
+  white-space: nowrap;
+}
+.tab:hover { opacity: .8; }
+.tab.active {
+  opacity: 1; border-top-color: var(--crimson);
+  background: var(--crimson); color: #fff;
+}
 
-    .range-btn:hover:not(.active) {
-      background: var(--cream-dim);
-    }
+/* ── MAIN ── */
+main { max-width: 1400px; margin: 0 auto; padding: 0 40px 60px; width: 100%; flex: 1; }
 
-    /* ── METRICS GRID ── */
-    .metrics {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      border-top: 2px solid var(--black);
-      border-left: 1px solid var(--cream-dim);
-      margin-bottom: 48px;
-    }
+.tab-panel[hidden] { display: none; }
+.tab-panel { animation: fade .25s ease; }
+@keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
-    @media (max-width: 1100px) {
-      .metrics { grid-template-columns: repeat(4, 1fr); }
-    }
-    @media (max-width: 600px) {
-      .metrics { grid-template-columns: repeat(2, 1fr); }
-      main { padding: 0 20px 40px; }
-      header { padding: 0 20px; }
-    }
+/* ── PANEL HEAD ── */
+.panel-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 30px 0 18px; gap: 16px; flex-wrap: wrap;
+}
+.screen-title {
+  font-family: var(--mono); font-size: .95rem; font-weight: 600;
+  letter-spacing: 1.5px; text-transform: uppercase; color: var(--navy);
+}
+.panel-actions { display: flex; align-items: center; gap: 12px; }
+.updated {
+  font-family: var(--mono); font-size: .66rem; letter-spacing: .5px;
+  color: var(--navy); opacity: .55; white-space: nowrap;
+}
+.updated.stale { color: var(--warn); opacity: 1; font-weight: 600; }
+.icon-btn {
+  background: none; border: 1px solid var(--cream-dim); color: var(--navy);
+  width: 32px; height: 32px; cursor: pointer; border-radius: 3px;
+  font-size: 1rem; transition: background .15s, transform .3s;
+}
+.icon-btn:hover { background: var(--cream-dim); }
+.icon-btn.spin { animation: spin .6s linear; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-    .metric {
-      border-right: 1px solid var(--cream-dim);
-      border-bottom: 1px solid var(--cream-dim);
-      padding: 20px 18px 18px;
-    }
+/* ── ERROR LINE ── */
+.error-line {
+  border-left: 3px solid var(--bad);
+  background: color-mix(in srgb, var(--bad) 10%, transparent);
+  color: var(--bad);
+  font-family: var(--mono); font-size: .74rem;
+  padding: 10px 14px; margin-bottom: 20px;
+}
 
-    .metric-label {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: .62rem;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: var(--navy);
-      opacity: .5;
-      margin-bottom: 10px;
-    }
+/* ── RANGE BAR ── */
+.range-bar {
+  display: flex; padding: 4px 0 26px;
+  border-bottom: 1px solid var(--cream-dim); margin-bottom: 32px;
+}
+.range-btn {
+  background: none; border: 1px solid var(--cream-dim); border-right: none;
+  color: var(--navy); padding: 7px 20px;
+  font-family: var(--mono); font-size: .72rem; letter-spacing: 1px; cursor: pointer;
+  transition: background .1s, color .1s;
+}
+.range-btn:last-child { border-right: 1px solid var(--cream-dim); }
+.range-btn.active { background: var(--crimson); color: #fff; border-color: var(--crimson); }
+.range-btn:hover:not(.active) { background: var(--cream-dim); }
 
-    .metric-value {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 1.9rem;
-      font-weight: 600;
-      color: var(--black);
-      line-height: 1;
-      margin-bottom: 6px;
-    }
+/* ── METRICS GRID ── */
+.metrics {
+  display: grid;
+  border-top: 2px solid var(--black);
+  border-left: 1px solid var(--cream-dim);
+}
+.metrics-7 { grid-template-columns: repeat(7, 1fr); }
+.metrics-6 { grid-template-columns: repeat(6, 1fr); }
+.metrics-4 { grid-template-columns: repeat(4, 1fr); }
 
-    .metric-value.crimson { color: var(--crimson); }
+.metric {
+  border-right: 1px solid var(--cream-dim);
+  border-bottom: 1px solid var(--cream-dim);
+  padding: 18px 16px 16px; background: var(--surface);
+}
+.metric.highlight-metric { background: color-mix(in srgb, var(--crimson) 7%, var(--surface)); }
 
-    .metric-unit {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: .65rem;
-      color: var(--navy);
-      opacity: .45;
-    }
+.metric-label {
+  font-family: var(--mono); font-size: .6rem; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--navy); opacity: .6; margin-bottom: 10px;
+}
+.metric-value {
+  font-family: var(--mono); font-size: 1.85rem; font-weight: 600;
+  color: var(--black); line-height: 1; margin-bottom: 5px;
+  word-break: break-word;
+}
+.metric-value.crimson { color: var(--crimson); }
+.metric-unit { font-family: var(--mono); font-size: .64rem; color: var(--navy); opacity: .5; }
+.metric-sub { font-size: .72rem; color: var(--navy); opacity: .6; margin-top: 4px; line-height: 1.3; }
 
-    .metric-sub {
-      font-size: .72rem;
-      color: var(--navy);
-      opacity: .5;
-      margin-top: 4px;
-    }
+/* ── SUMMARY CARDS (Škola) ── */
+.summary-cards {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+  border-top: 2px solid var(--black); border-left: 1px solid var(--cream-dim);
+  margin-bottom: 44px;
+}
+.summary-card {
+  border-right: 1px solid var(--cream-dim); border-bottom: 1px solid var(--cream-dim);
+  padding: 22px 20px; background: var(--surface);
+}
+.summary-card.highlight { background: color-mix(in srgb, var(--crimson) 8%, var(--surface)); }
+.summary-card .metric-value { font-size: 2.4rem; }
 
-    /* skeleton */
-    .skeleton {
-      display: inline-block;
-      width: 60%;
-      height: 1.9rem;
-      background: linear-gradient(90deg, var(--cream-dim) 25%, #e8d4d3 50%, var(--cream-dim) 75%);
-      background-size: 200% 100%;
-      animation: shimmer 1.4s infinite;
-    }
+/* ── SKELETON ── */
+.skeleton {
+  display: inline-block; width: 64%; height: 1.6rem; border-radius: 2px;
+  background: linear-gradient(90deg, var(--cream-dim) 25%, var(--shimmer) 50%, var(--cream-dim) 75%);
+  background-size: 200% 100%; animation: shimmer 1.3s infinite;
+}
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-    @keyframes shimmer {
-      0%   { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
-    }
+/* ── SECTION LABEL ── */
+.section-label {
+  font-family: var(--mono); font-size: .65rem; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--navy); opacity: .55; margin-bottom: 16px;
+}
 
-    /* ── CHARTS ── */
-    .section-label {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: .65rem;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--navy);
-      opacity: .4;
-      margin-bottom: 16px;
-    }
+/* ── CHARTS ── */
+.charts {
+  display: grid; grid-template-columns: 1fr 1fr;
+  border-top: 2px solid var(--black); border-left: 1px solid var(--cream-dim);
+}
+.chart-cell {
+  border-right: 1px solid var(--cream-dim); border-bottom: 1px solid var(--cream-dim);
+  padding: 18px 20px 18px; background: var(--surface); min-width: 0; position: relative;
+}
+.chart-cell.loading::after {
+  content: "Načítavam…"; position: absolute; left: 0; right: 0; top: 44px; bottom: 18px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: .68rem; letter-spacing: 1.5px;
+  color: var(--navy); opacity: .45; pointer-events: none;
+  background: var(--surface);
+}
+.chart-cell.full { grid-column: 1 / -1; }
+.chart-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 10px; }
+.chart-cell h3 {
+  font-family: var(--mono); font-size: .62rem; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--navy); opacity: .6; font-weight: 600;
+}
+.chart-cell canvas { max-height: 200px; width: 100% !important; }
+.chart-cell.full canvas { max-height: 230px; }
 
-    .charts {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0;
-      border-top: 2px solid var(--black);
-      border-left: 1px solid var(--cream-dim);
-    }
+.csv-btn {
+  background: none; border: 1px solid var(--cream-dim); color: var(--navy);
+  font-family: var(--mono); font-size: .58rem; letter-spacing: 1px;
+  padding: 3px 8px; cursor: pointer; border-radius: 2px; opacity: .7;
+  transition: background .15s, opacity .15s; flex-shrink: 0;
+}
+.csv-btn:hover { background: var(--cream-dim); opacity: 1; }
 
-    @media (max-width: 800px) {
-      .charts { grid-template-columns: 1fr; }
-    }
+/* ── TH GRID (Škola) ── */
+.th-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  border-top: 2px solid var(--black); border-left: 1px solid var(--cream-dim);
+}
+.th-card {
+  border-right: 1px solid var(--cream-dim); border-bottom: 1px solid var(--cream-dim);
+  padding: 12px 14px; background: var(--surface); cursor: pointer;
+  transition: background .12s; position: relative;
+}
+.th-card:hover { background: var(--cream-dim); }
+.th-card.selected { box-shadow: inset 3px 0 0 var(--crimson); background: color-mix(in srgb, var(--crimson) 6%, var(--surface)); }
+.th-card.offline { opacity: .45; }
+.th-card .th-name {
+  font-family: var(--mono); font-size: .6rem; letter-spacing: 1px;
+  color: var(--navy); opacity: .65; margin-bottom: 6px; text-transform: uppercase;
+}
+.th-card .th-temp { font-family: var(--mono); font-size: 1.5rem; font-weight: 600; color: var(--black); line-height: 1; }
+.th-card .th-hum { font-size: .7rem; color: var(--navy); opacity: .6; margin-top: 4px; }
+.th-card .th-bar { height: 3px; margin-top: 8px; background: var(--cream-dim); position: relative; overflow: hidden; }
+.th-card .th-bar > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--crimson); }
 
-    .chart-cell {
-      border-right: 1px solid var(--cream-dim);
-      border-bottom: 1px solid var(--cream-dim);
-      padding: 24px 22px 20px;
-    }
+/* deviation dots */
+.th-card .th-dev { position: absolute; top: 12px; right: 14px; width: 7px; height: 7px; border-radius: 50%; }
+.th-dev.cold { background: #3a7ca5; }
+.th-dev.warm { background: var(--warn); }
+.th-dev.norm { background: var(--ok); }
 
-    .chart-cell.full { grid-column: 1 / -1; }
+/* ── STATUS STRIP (Trieda IT) ── */
+.status-strip {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  border-top: 2px solid var(--black); border-left: 1px solid var(--cream-dim);
+}
+.status-item {
+  border-right: 1px solid var(--cream-dim); border-bottom: 1px solid var(--cream-dim);
+  padding: 14px 16px; background: var(--surface);
+}
+.status-item .si-top { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
+.status-item .si-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.si-dot.ok { background: var(--ok); } .si-dot.warn { background: var(--warn); } .si-dot.bad { background: var(--bad); }
+.status-item .si-name { font-family: var(--mono); font-size: .58rem; letter-spacing: 1px; text-transform: uppercase; color: var(--navy); opacity: .6; }
+.status-item .si-val { font-family: var(--mono); font-size: 1.15rem; font-weight: 600; color: var(--black); }
+.status-item .si-state { font-family: var(--mono); font-size: .66rem; margin-top: 2px; }
+.si-state.ok { color: var(--ok); } .si-state.warn { color: var(--warn); } .si-state.bad { color: var(--bad); }
 
-    .chart-cell h3 {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: .62rem;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: var(--navy);
-      opacity: .45;
-      margin-bottom: 16px;
-    }
+/* ── DOOR PANEL ── */
+.door-panel {
+  display: grid; grid-template-columns: 280px 1fr;
+  border-top: 2px solid var(--black); border-left: 1px solid var(--cream-dim);
+}
+.door-state-box, .door-events-box {
+  border-right: 1px solid var(--cream-dim); border-bottom: 1px solid var(--cream-dim);
+  padding: 20px; background: var(--surface);
+}
+.door-badge {
+  font-family: var(--mono); font-size: 1.6rem; font-weight: 600;
+  letter-spacing: 1px; margin: 8px 0 6px; color: var(--ok);
+}
+.door-badge.open { color: var(--crimson); }
+.door-stats { display: flex; flex-direction: column; gap: 4px; margin-top: 14px; font-size: .74rem; color: var(--navy); opacity: .75; font-family: var(--mono); }
+.door-events { list-style: none; max-height: 230px; overflow-y: auto; margin-top: 10px; }
+.door-events li {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--mono); font-size: .72rem; padding: 6px 0;
+  border-bottom: 1px solid var(--cream-dim); color: var(--navy);
+}
+.door-events li .ev-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.ev-dot.open { background: var(--crimson); } .ev-dot.close { background: var(--ok); }
+.door-events li .ev-state { width: 90px; }
+.door-events li .ev-time { opacity: .6; }
 
-    .chart-cell canvas { max-height: 180px; }
+/* ── CAMERAS ── */
+.cameras-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(440px, 100%), 1fr));
+  border-top: 2px solid var(--black); border-left: 1px solid var(--cream-dim);
+}
+.camera-card {
+  border-right: 1px solid var(--cream-dim); border-bottom: 1px solid var(--cream-dim);
+  background: var(--surface);
+}
+.camera-label { font-family: var(--mono); font-size: .62rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--navy); opacity: .6; padding: 13px 16px 9px; }
+.camera-frame { position: relative; overflow: hidden; }
+.camera-img {
+  display: block; width: 100%; aspect-ratio: 16/9; object-fit: cover;
+  background: var(--cream-dim); cursor: zoom-in; transition: transform .3s ease, filter .15s ease;
+}
+.camera-frame:hover .camera-img,
+.camera-img:focus-visible { transform: scale(1.02); filter: brightness(.9); }
+.camera-img:focus-visible { outline: 2px solid var(--crimson); outline-offset: -2px; }
+.cam-zoom {
+  position: absolute; top: 10px; right: 10px;
+  font-family: var(--mono); font-size: .58rem; letter-spacing: 1px; text-transform: uppercase;
+  color: #fff; background: rgba(8,18,28,.6); padding: 4px 8px; border-radius: 3px;
+  opacity: 0; transition: opacity .15s ease; pointer-events: none;
+}
+.camera-frame:hover .cam-zoom,
+.camera-img:focus-visible + .cam-zoom { opacity: 1; }
+.camera-foot { padding: 9px 16px; font-family: var(--mono); font-size: .64rem; color: var(--navy); opacity: .6; }
 
-    /* ── TABS ── */
-    .tabs {
-      background: var(--navy);
-      display: flex;
-      padding: 0 40px;
-      gap: 0;
-      border-bottom: 3px solid var(--crimson);
-    }
+/* ── CAMERA LIGHTBOX ── */
+.cam-modal {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(8,18,28,.86); padding: 32px;
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+  animation: fade .2s ease;
+}
+.cam-modal[hidden] { display: none; }
+.cam-modal-fig { max-width: 1180px; width: 100%; cursor: default; }
+.cam-modal-fig img {
+  display: block; width: 100%; height: auto; max-height: 82vh; object-fit: contain;
+  background: #000; border: 1px solid var(--crimson);
+}
+.cam-modal-cap {
+  display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  font-family: var(--mono); font-size: .68rem; letter-spacing: 1px; text-transform: uppercase;
+  color: #cfe0ee; padding: 11px 2px;
+}
+.cam-modal-close {
+  position: absolute; top: 18px; right: 22px; width: 40px; height: 40px;
+  background: none; border: 1px solid rgba(255,255,255,.5); color: #fff;
+  font-size: 1.1rem; cursor: pointer; border-radius: 4px; transition: background .15s;
+}
+.cam-modal-close:hover { background: rgba(255,255,255,.15); }
 
-    .tab {
-      background: none;
-      border: none;
-      border-top: 3px solid transparent;
-      color: var(--cream);
-      opacity: .45;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: .72rem;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      padding: 14px 24px;
-      cursor: pointer;
-      transition: opacity .15s;
-      margin-bottom: -3px;
-    }
+/* ── FOOTER ── */
+.site-footer {
+  display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  max-width: 1400px; margin: 0 auto; width: 100%;
+  padding: 20px 40px 30px; border-top: 1px solid var(--cream-dim);
+  font-family: var(--mono); font-size: .64rem; letter-spacing: .5px;
+  color: var(--navy); opacity: .55;
+}
 
-    .tab:hover { opacity: .75; }
+/* ── JEDNODUCHÝ REŽIM (glance view) ── */
+.easy-btn {
+  background: none; border: 1px solid rgba(243,227,226,.35); color: #fff;
+  font-family: var(--mono); font-size: .6rem; letter-spacing: 1px; text-transform: uppercase;
+  height: 30px; padding: 0 11px; cursor: pointer; border-radius: 3px; opacity: .8;
+  white-space: nowrap; transition: opacity .15s, background .15s;
+}
+.easy-btn:hover { opacity: 1; background: rgba(243,227,226,.12); }
+body.easy .easy-btn { background: var(--crimson); border-color: var(--crimson); opacity: 1; }
 
-    .tab.active {
-      opacity: 1;
-      border-top-color: var(--crimson);
-      background: var(--crimson);
-    }
+/* view swap: simple mode hides the tabs + full dashboard, shows the glance view */
+.easy-view { display: none; }
+body.easy .tabs, body.easy main { display: none; }
+body.easy .easy-view {
+  display: flex; flex-direction: column; flex: 1;
+  max-width: 1400px; margin: 0 auto; width: 100%; padding: 0 40px 60px;
+  animation: fade .25s ease;
+}
 
-    /* ── CAMERAS ── */
-    .cameras-section {
-      margin-top: 48px;
-      border-top: 2px solid var(--black);
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
-      border-left: 1px solid var(--cream-dim);
-    }
+.easy-head { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 34px 0 4px; }
+.easy-head h2 { font-family: var(--mono); font-size: 1.05rem; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--navy); }
 
-    .camera-card {
-      border-right: 1px solid var(--cream-dim);
-      border-bottom: 1px solid var(--cream-dim);
-    }
+.easy-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 22px 0 30px; }
+.easy-tile {
+  background: var(--surface); border: 1px solid var(--cream-dim); border-top: 4px solid var(--cream-dim);
+  border-radius: 7px; padding: 26px 24px; display: flex; flex-direction: column; gap: 12px; min-height: 168px;
+}
+.easy-tile.ok   { border-top-color: var(--ok); }
+.easy-tile.warn { border-top-color: var(--warn); }
+.easy-tile.bad  { border-top-color: var(--bad); }
+.et-label { font-family: var(--mono); font-size: .72rem; letter-spacing: 1px; text-transform: uppercase; color: var(--navy); opacity: .75; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.et-tag { font-size: .58rem; opacity: .6; letter-spacing: .5px; }
+.et-value { font-family: var(--mono); font-size: 3rem; font-weight: 600; line-height: 1; color: var(--black); margin-top: auto; word-break: break-word; }
+.easy-tile.big .et-value { font-size: 3.4rem; }
+.et-sub { font-size: .82rem; color: var(--navy); opacity: .7; line-height: 1.4; }
+.et-state { font-family: var(--mono); font-size: 1rem; font-weight: 600; }
+.et-state.ok { color: var(--ok); } .et-state.warn { color: var(--warn); } .et-state.bad { color: var(--bad); }
 
-    .camera-label {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: .62rem;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: var(--navy);
-      opacity: .45;
-      padding: 14px 18px 10px;
-    }
+.easy-cams { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(480px, 100%), 1fr)); gap: 16px; }
+.easy-cams .camera-card { border: 1px solid var(--cream-dim); border-radius: 7px; overflow: hidden; }
 
-    .camera-img {
-      display: block;
-      width: 100%;
-      aspect-ratio: 16/9;
-      object-fit: cover;
-      background: var(--cream-dim);
-    }
+/* dark-mode: keep the simple-view labels legible on the marine canvas */
+body.dark .easy-head h2, body.dark .et-label, body.dark .et-sub { opacity: .92; }
 
-    /* ── REPORT ── */
-    .report-wrap {
-      padding: 36px 0 60px;
-    }
+/* ── RESPONSIVE ── */
+@media (max-width: 1100px) {
+  .metrics-7 { grid-template-columns: repeat(4, 1fr); }
+  .metrics-6 { grid-template-columns: repeat(3, 1fr); }
+  .summary-cards { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 800px) {
+  .charts { grid-template-columns: 1fr; }
+  .door-panel { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  /* stack the header so the status row can't overflow off-screen */
+  header { grid-template-columns: 1fr; padding: 0 18px; }
+  .header-title { border-right: none; padding: 16px 0 10px; }
+  .header-status { padding-left: 0; padding-bottom: 14px; flex-wrap: wrap; gap: 10px 12px; }
+}
+@media (max-width: 600px) {
+  .tabs { padding: 0 18px; }
+  .alert-banner { padding: 11px 18px; }
+  main, body.easy .easy-view { padding: 0 18px 40px; }
+  .site-footer { padding: 20px 18px 30px; }
+  .metrics-7, .metrics-6, .metrics-4 { grid-template-columns: repeat(2, 1fr); }
+  .summary-cards { grid-template-columns: repeat(2, 1fr); }
+  .header-title h1 { font-size: .85rem; }
+  .metric-value { font-size: 1.5rem; }
+  .summary-card .metric-value { font-size: 1.8rem; }
+  /* full-width, evenly-split range buttons = bigger tap targets */
+  .range-btn { flex: 1; padding: 9px 4px; text-align: center; }
+  /* a touch more breathing room in dense grids */
+  .panel-head { padding: 22px 0 14px; }
+}
 
-    .report-updated {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: .65rem;
-      letter-spacing: 1px;
-      color: var(--navy);
-      opacity: .4;
-      margin-bottom: 28px;
-    }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
 
-    .report-row {
-      display: grid;
-      grid-template-columns: 200px 140px 1fr 200px;
-      align-items: center;
-      border-top: 1px solid var(--cream-dim);
-      padding: 16px 0;
-      gap: 24px;
-    }
-
-    .report-row:last-of-type { border-bottom: 1px solid var(--cream-dim); }
-
-    .r-name {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: .7rem;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      color: var(--navy);
-      opacity: .55;
-    }
-
-    .r-value {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 1.4rem;
-      font-weight: 600;
-      color: var(--black);
-    }
-
-    .r-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: .72rem;
-      letter-spacing: .5px;
-    }
-
-    .r-dot {
-      width: 8px; height: 8px;
-      flex-shrink: 0;
-    }
-
-    .r-dot.ok   { background: #2d6a4f; }
-    .r-dot.warn { background: #e07b00; }
-    .r-dot.bad  { background: var(--crimson); }
-
-    .r-status.ok   { color: #2d6a4f; }
-    .r-status.warn { color: #e07b00; }
-    .r-status.bad  { color: var(--crimson); }
-
-    .r-note {
-      font-size: .78rem;
-      color: var(--navy);
-      opacity: .5;
-      line-height: 1.4;
-    }
-
-    .report-action-box {
-      margin-top: 32px;
-      border-left: 3px solid var(--crimson);
-      padding: 18px 22px;
-      background: rgba(75,0,0,.04);
-    }
-
-    .report-action-box h4 {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: .7rem;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: var(--crimson);
-      margin-bottom: 10px;
-    }
-
-    .report-action-box ul {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .report-action-box li {
-      font-size: .82rem;
-      color: var(--navy);
-      padding-left: 16px;
-      position: relative;
-    }
-
-    .report-action-box li::before {
-      content: '→';
-      position: absolute;
-      left: 0;
-      color: var(--crimson);
-      font-family: 'IBM Plex Mono', monospace;
-    }
-
-    @media (max-width: 800px) {
-      .report-row { grid-template-columns: 1fr 1fr; }
-      .r-note { grid-column: 1 / -1; }
-    }
-
-    .cameras-placeholder {
-      padding: 60px 40px;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: .8rem;
-      color: var(--navy);
-      opacity: .4;
-    }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
 </head>
 <body>
 
+<!-- ══ HEADER ══ -->
 <header>
   <div class="header-title">
     <h1>Meteostanica — Hrad</h1>
-    <p>Automatická meteorologická stanica</p>
+    <p>Automatická meteorologická stanica · Monitoring v reálnom čase</p>
   </div>
   <div class="header-status">
-    <button id="theme-toggle" onclick="toggleTheme()">◐</button>
-    <div id="dot"></div>
+    <button id="easy-toggle" type="button" class="easy-btn" title="Jednoduchý režim" aria-pressed="false">◱ Jednoduchý</button>
+    <button id="theme-toggle" type="button" title="Prepnúť tmavý režim" aria-label="Prepnúť tmavý režim">◐</button>
+    <div id="dot" title="Stav spojenia" role="status" aria-label="Stav spojenia"></div>
     <span id="last-update">Načítavam…</span>
   </div>
 </header>
 
-<nav class="tabs">
-  <button class="tab active" data-tab="report">Správa</button>
-  <button class="tab" data-tab="skola">Škola</button>
-  <button class="tab" data-tab="nitra">Nitra</button>
-  <button class="tab" data-tab="kamery">Kamery</button>
+<!-- ══ GLOBAL ALERT BANNER ══ -->
+<div id="alert-banner" class="alert-banner" hidden>
+  <span class="alert-icon" aria-hidden="true">⚠</span>
+  <span id="alert-text"></span>
+  <button id="alert-close" type="button" aria-label="Zavrieť upozornenie">✕</button>
+</div>
+
+<!-- ══ TABS ══ -->
+<nav class="tabs" id="tabs" role="tablist" aria-label="Sekcie">
+  <button class="tab active" data-tab="domov" id="tabbtn-domov" role="tab" aria-selected="true" aria-controls="tab-domov">Domov</button>
+  <button class="tab" data-tab="skola" id="tabbtn-skola" role="tab" aria-selected="false" aria-controls="tab-skola">Škola</button>
+  <button class="tab" data-tab="it" id="tabbtn-it" role="tab" aria-selected="false" aria-controls="tab-it">Trieda IT</button>
 </nav>
 
 <main>
 
-  <div id="tab-nitra" style="display:none">
-  <div class="range-bar">
-    <button class="range-btn active" data-hours="6">6h</button>
-    <button class="range-btn" data-hours="12">12h</button>
-    <button class="range-btn" data-hours="24">24h</button>
-    <button class="range-btn" data-hours="48">48h</button>
-    <button class="range-btn" data-hours="168">7d</button>
-  </div>
+  <!-- ════════════════════ DOMOV ════════════════════ -->
+  <section id="tab-domov" class="tab-panel" role="tabpanel" aria-labelledby="tabbtn-domov">
 
-  <div class="metrics">
-
-    <div class="metric">
-      <div class="metric-label">Teplota</div>
-      <div class="metric-value crimson" id="c-temp"><span class="skeleton"></span></div>
-      <div class="metric-sub" id="c-feels">Pocitová —</div>
+    <div class="panel-head">
+      <h2 class="screen-title">Aktuálne počasie — Nitra</h2>
+      <div class="panel-actions">
+        <span class="updated" id="domov-updated">—</span>
+        <button class="icon-btn" id="domov-refresh" type="button" title="Obnoviť">⟳</button>
+      </div>
     </div>
 
-    <div class="metric">
-      <div class="metric-label">Vlhkosť</div>
-      <div class="metric-value" id="c-hum"><span class="skeleton"></span></div>
+    <div class="error-line" id="domov-error" hidden></div>
+
+    <div class="range-bar" data-range="weather">
+      <button class="range-btn active" data-hours="6">6h</button>
+      <button class="range-btn" data-hours="12">12h</button>
+      <button class="range-btn" data-hours="24">24h</button>
+      <button class="range-btn" data-hours="48">48h</button>
+      <button class="range-btn" data-hours="168">7d</button>
     </div>
 
-    <div class="metric">
-      <div class="metric-label">Tlak</div>
-      <div class="metric-value" id="c-pres"><span class="skeleton"></span></div>
+    <div class="metrics metrics-7">
+      <div class="metric">
+        <div class="metric-label">Teplota</div>
+        <div class="metric-value crimson" id="w-temp"><span class="skeleton"></span></div>
+        <div class="metric-sub" id="w-feels">Pocitová —</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Vlhkosť</div>
+        <div class="metric-value" id="w-hum"><span class="skeleton"></span></div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Tlak</div>
+        <div class="metric-value" id="w-pres"><span class="skeleton"></span></div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Vietor</div>
+        <div class="metric-value" id="w-wind"><span class="skeleton"></span></div>
+        <div class="metric-sub" id="w-wdir">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Zrážky 1h</div>
+        <div class="metric-value" id="w-rain"><span class="skeleton"></span></div>
+        <div class="metric-sub" id="w-snow">Sneh —</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Oblačnosť</div>
+        <div class="metric-value" id="w-cloud"><span class="skeleton"></span></div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">GHI</div>
+        <div class="metric-value" id="w-ghi"><span class="skeleton"></span></div>
+        <div class="metric-sub" id="w-cghi">Clear sky —</div>
+      </div>
     </div>
 
-    <div class="metric">
-      <div class="metric-label">Vietor</div>
-      <div class="metric-value" id="c-wind"><span class="skeleton"></span></div>
-      <div class="metric-sub" id="c-wdir">—</div>
+    <div class="charts">
+      <div class="chart-cell">
+        <div class="chart-head"><h3>Teplota &amp; Pocitová teplota</h3>
+          <button class="csv-btn" data-export="weather" type="button">CSV</button></div>
+        <canvas id="ch-temp"></canvas>
+      </div>
+      <div class="chart-cell">
+        <div class="chart-head"><h3>Vlhkosť &amp; Tlak</h3></div>
+        <canvas id="ch-hum"></canvas>
+      </div>
+      <div class="chart-cell">
+        <div class="chart-head"><h3>Rýchlosť vetra</h3></div>
+        <canvas id="ch-wind"></canvas>
+      </div>
+      <div class="chart-cell">
+        <div class="chart-head"><h3>Zrážky</h3></div>
+        <canvas id="ch-rain"></canvas>
+      </div>
+      <div class="chart-cell full">
+        <div class="chart-head"><h3>Slnečné žiarenie GHI vs. Clear Sky</h3></div>
+        <canvas id="ch-ghi"></canvas>
+      </div>
     </div>
 
-    <div class="metric">
-      <div class="metric-label">Zrážky 1h</div>
-      <div class="metric-value" id="c-rain"><span class="skeleton"></span></div>
-      <div class="metric-sub" id="c-snow">Sneh —</div>
+    <div class="panel-head" style="margin-top:48px">
+      <h2 class="screen-title">Kamery</h2>
+      <div class="panel-actions">
+        <span class="updated" id="cam-updated">—</span>
+        <button class="icon-btn" id="cam-refresh" type="button" title="Obnoviť kamery">⟳</button>
+      </div>
     </div>
 
-    <div class="metric">
-      <div class="metric-label">Oblačnosť</div>
-      <div class="metric-value" id="c-cloud"><span class="skeleton"></span></div>
-    </div>
-
-    <div class="metric">
-      <div class="metric-label">GHI</div>
-      <div class="metric-value" id="c-ghi"><span class="skeleton"></span></div>
-      <div class="metric-sub" id="c-cghi">Clear sky —</div>
-    </div>
-
-  </div>
-
-  <div class="charts">
-    <div class="chart-cell">
-      <h3>Teplota & Pocitová teplota</h3>
-      <canvas id="ch-temp"></canvas>
-    </div>
-    <div class="chart-cell">
-      <h3>Vlhkosť & Tlak</h3>
-      <canvas id="ch-hum"></canvas>
-    </div>
-    <div class="chart-cell">
-      <h3>Rýchlosť vetra</h3>
-      <canvas id="ch-wind"></canvas>
-    </div>
-    <div class="chart-cell">
-      <h3>Zrážky</h3>
-      <canvas id="ch-rain"></canvas>
-    </div>
-    <div class="chart-cell full">
-      <h3>Slnečné žiarenie GHI vs. Clear Sky</h3>
-      <canvas id="ch-ghi"></canvas>
-    </div>
-  </div>
-
-  </div><!-- #tab-nitra -->
-
-  <div id="tab-kamery" style="display:none">
-    <div class="cameras-section" style="margin-top:36px">
+    <div class="cameras-grid">
       <div class="camera-card">
         <div class="camera-label">Pohľad na centrum</div>
-        <img id="cam-0" class="camera-img" src="" alt="Centrum" />
+        <div class="camera-frame">
+          <img id="cam-0" class="camera-img" alt="Kamera — centrum" loading="lazy" tabindex="0" role="button" title="Kliknite pre zväčšenie" />
+          <span class="cam-zoom" aria-hidden="true">⤢ Zväčšiť</span>
+        </div>
+        <div class="camera-foot"><span id="cam-0-time">—</span></div>
       </div>
       <div class="camera-card">
         <div class="camera-label">Pohľad na Mlynárce</div>
-        <img id="cam-1" class="camera-img" src="" alt="Mlynárce" />
+        <div class="camera-frame">
+          <img id="cam-1" class="camera-img" alt="Kamera — Mlynárce" loading="lazy" tabindex="0" role="button" title="Kliknite pre zväčšenie" />
+          <span class="cam-zoom" aria-hidden="true">⤢ Zväčšiť</span>
+        </div>
+        <div class="camera-foot"><span id="cam-1-time">—</span></div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <div id="tab-skola" style="display:none">
+  <!-- ════════════════════ ŠKOLA ════════════════════ -->
+  <section id="tab-skola" class="tab-panel" role="tabpanel" aria-labelledby="tabbtn-skola" hidden>
 
-    <div class="metrics" style="margin-top:36px">
-
-      <div class="metric">
-        <div class="metric-label">Dvere</div>
-        <div class="metric-value crimson" id="s-door">—</div>
-        <div class="metric-sub" id="s-door-time">—</div>
-        <div class="metric-sub" id="s-door-bat">—</div>
+    <div class="panel-head">
+      <h2 class="screen-title">Škola — Teplotné senzory TH 1–20</h2>
+      <div class="panel-actions">
+        <span class="updated" id="skola-updated">—</span>
+        <button class="icon-btn" id="skola-refresh" type="button" title="Obnoviť">⟳</button>
       </div>
+    </div>
 
-      <div class="metric">
-        <div class="metric-label">Osvetlenie</div>
-        <div class="metric-value" id="s-lux">—</div>
-        <div class="metric-unit">lux</div>
-        <div class="metric-sub" id="s-lux-bat">—</div>
+    <div class="error-line" id="skola-error" hidden></div>
+
+    <div class="range-bar" data-range="skola">
+      <button class="range-btn" data-hours="6">6h</button>
+      <button class="range-btn" data-hours="12">12h</button>
+      <button class="range-btn active" data-hours="24">24h</button>
+      <button class="range-btn" data-hours="48">48h</button>
+      <button class="range-btn" data-hours="168">7d</button>
+    </div>
+
+    <div class="summary-cards">
+      <div class="summary-card highlight">
+        <div class="metric-label">Priemerná teplota</div>
+        <div class="metric-value crimson" id="sk-avg-temp"><span class="skeleton"></span></div>
+        <div class="metric-sub">zo všetkých TH senzorov</div>
       </div>
+      <div class="summary-card">
+        <div class="metric-label">Priemerná vlhkosť</div>
+        <div class="metric-value" id="sk-avg-hum"><span class="skeleton"></span></div>
+      </div>
+      <div class="summary-card">
+        <div class="metric-label">Najnižšia / Najvyššia</div>
+        <div class="metric-value" id="sk-minmax" style="font-size:1.2rem"><span class="skeleton"></span></div>
+        <div class="metric-sub" id="sk-minmax-where">—</div>
+      </div>
+      <div class="summary-card">
+        <div class="metric-label">Senzory online</div>
+        <div class="metric-value" id="sk-online"><span class="skeleton"></span></div>
+        <div class="metric-sub">z 20</div>
+      </div>
+    </div>
 
+    <div class="charts">
+      <div class="chart-cell full">
+        <div class="chart-head"><h3>Aktuálna teplota podľa senzora (°C)</h3>
+          <button class="csv-btn" data-export="th-current" type="button">CSV</button></div>
+        <canvas id="ch-th-temp"></canvas>
+      </div>
+      <div class="chart-cell full">
+        <div class="chart-head"><h3>Aktuálna vlhkosť podľa senzora (%)</h3></div>
+        <canvas id="ch-th-hum"></canvas>
+      </div>
+      <div class="chart-cell full">
+        <div class="chart-head"><h3>Priemerná teplota — história (s rozpätím min–max)</h3>
+          <button class="csv-btn" data-export="th-avg" type="button">CSV</button></div>
+        <canvas id="ch-th-avg"></canvas>
+      </div>
+      <div class="chart-cell full">
+        <div class="chart-head"><h3>Detail senzora — <span id="th-detail-name">TH01</span> (klikni na kartu nižšie)</h3></div>
+        <canvas id="ch-th-detail"></canvas>
+      </div>
+    </div>
+
+    <div class="section-label" style="margin-top:40px">Jednotlivé senzory · klikni pre detail</div>
+    <div class="th-grid" id="th-grid"></div>
+  </section>
+
+  <!-- ════════════════════ TRIEDA IT ════════════════════ -->
+  <section id="tab-it" class="tab-panel" role="tabpanel" aria-labelledby="tabbtn-it" hidden>
+
+    <div class="panel-head">
+      <h2 class="screen-title">Trieda IT — Prostredie &amp; zariadenia</h2>
+      <div class="panel-actions">
+        <span class="updated" id="it-updated">—</span>
+        <button class="icon-btn" id="it-refresh" type="button" title="Obnoviť">⟳</button>
+      </div>
+    </div>
+
+    <div class="error-line" id="it-error" hidden></div>
+
+    <!-- Condensed environment status -->
+    <div class="status-strip" id="it-status"></div>
+
+    <div class="section-label" style="margin-top:40px">Ambient senzor</div>
+    <div class="metrics metrics-6">
       <div class="metric">
         <div class="metric-label">Teplota</div>
-        <div class="metric-value" id="s-amb-temp">—</div>
-        <div class="metric-unit">°C</div>
+        <div class="metric-value" id="it-temp">—</div><div class="metric-unit">°C</div>
       </div>
-
       <div class="metric">
         <div class="metric-label">Vlhkosť</div>
-        <div class="metric-value" id="s-amb-hum">—</div>
-        <div class="metric-unit">%</div>
+        <div class="metric-value" id="it-hum">—</div><div class="metric-unit">%</div>
       </div>
-
       <div class="metric">
         <div class="metric-label">CO₂</div>
-        <div class="metric-value crimson" id="s-amb-co2">—</div>
-        <div class="metric-unit">ppm</div>
+        <div class="metric-value crimson" id="it-co2">—</div><div class="metric-unit">ppm</div>
       </div>
-
       <div class="metric">
         <div class="metric-label">TVOC</div>
-        <div class="metric-value" id="s-amb-tvoc">—</div>
-        <div class="metric-unit">ppb</div>
+        <div class="metric-value" id="it-tvoc">—</div><div class="metric-unit">ppb</div>
       </div>
-
       <div class="metric">
-        <div class="metric-label">PIR pohyb</div>
-        <div class="metric-value" id="s-amb-pir">—</div>
-        <div class="metric-sub" id="s-amb-bat">—</div>
+        <div class="metric-label">Tlak</div>
+        <div class="metric-value" id="it-pres">—</div><div class="metric-unit">hPa</div>
       </div>
-
       <div class="metric">
-        <div class="metric-label">Bambu P1S — zásuvka</div>
-        <div class="metric-value" id="s-pwr-status">—</div>
-        <div class="metric-sub" id="s-pwr-power">—</div>
-        <div class="metric-sub" id="s-pwr-voltage">—</div>
-        <div class="metric-sub" id="s-pwr-consumption">—</div>
+        <div class="metric-label">Pohyb (PIR)</div>
+        <div class="metric-value" id="it-pir">—</div>
+        <div class="metric-sub" id="it-bat">—</div>
       </div>
-
     </div>
 
-    <div class="charts" style="margin-top:48px">
+    <div class="section-label" style="margin-top:40px">Osvetlenie &amp; napájanie 3D tlačiarne</div>
+    <div class="metrics metrics-4">
+      <div class="metric">
+        <div class="metric-label">Osvetlenie (LUX)</div>
+        <div class="metric-value" id="it-lux">—</div><div class="metric-unit">lux</div>
+        <div class="metric-sub" id="it-lux-bat">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Power Meter — zásuvka</div>
+        <div class="metric-value" id="it-pwr-status">—</div>
+        <div class="metric-sub" id="it-pwr-power">—</div>
+        <div class="metric-sub" id="it-pwr-volt">—</div>
+      </div>
+      <div class="metric highlight-metric">
+        <div class="metric-label">Súhrnná spotreba</div>
+        <div class="metric-value crimson" id="it-pwr-cons">—</div>
+        <div class="metric-sub" id="it-pwr-cons-kwh">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Účinník / Prúd</div>
+        <div class="metric-value" id="it-pwr-pf" style="font-size:1.3rem">—</div>
+        <div class="metric-sub" id="it-pwr-cur">—</div>
+      </div>
+    </div>
+
+    <!-- Door sensor 5 -->
+    <div class="section-label" style="margin-top:40px">Door Sensor 5 — vstupné dvere</div>
+    <div class="door-panel">
+      <div class="door-state-box">
+        <div class="metric-label">Aktuálny stav</div>
+        <div class="door-badge" id="it-door-state">—</div>
+        <div class="metric-sub" id="it-door-time">—</div>
+        <div class="door-stats">
+          <span>Otvorení dnes: <strong id="it-door-count">—</strong></span>
+          <span id="it-door-bat">—</span>
+        </div>
+      </div>
+      <div class="door-events-box">
+        <div class="metric-label">História otvorení
+          <button class="csv-btn" data-export="door" type="button" style="float:right">CSV</button></div>
+        <ul class="door-events" id="door-events"></ul>
+      </div>
+    </div>
+
+    <div class="section-label" style="margin-top:40px">História prostredia · rozsah</div>
+    <div class="range-bar" data-range="it">
+      <button class="range-btn" data-hours="6">6h</button>
+      <button class="range-btn active" data-hours="12">12h</button>
+      <button class="range-btn" data-hours="24">24h</button>
+      <button class="range-btn" data-hours="48">48h</button>
+      <button class="range-btn" data-hours="168">7d</button>
+    </div>
+
+    <div class="charts">
       <div class="chart-cell">
-        <h3>CO₂ (ppm)</h3>
+        <div class="chart-head"><h3>CO₂ (ppm)</h3>
+          <button class="csv-btn" data-export="ambient" type="button">CSV</button></div>
         <canvas id="ch-co2"></canvas>
       </div>
       <div class="chart-cell">
-        <h3>Teplota & Vlhkosť</h3>
-        <canvas id="ch-skola-temp"></canvas>
+        <div class="chart-head"><h3>TVOC (ppb)</h3></div>
+        <canvas id="ch-tvoc"></canvas>
       </div>
       <div class="chart-cell">
-        <h3>Osvetlenie (lux)</h3>
+        <div class="chart-head"><h3>Teplota &amp; Vlhkosť</h3></div>
+        <canvas id="ch-it-th"></canvas>
+      </div>
+      <div class="chart-cell">
+        <div class="chart-head"><h3>Osvetlenie (lux)</h3></div>
         <canvas id="ch-lux"></canvas>
       </div>
       <div class="chart-cell">
-        <h3>TVOC (ppb)</h3>
-        <canvas id="ch-tvoc"></canvas>
-      </div>
-      <div class="chart-cell full">
-        <h3>Dvere — história (0 = zatvorené, 1 = otvorené)</h3>
-        <canvas id="ch-door"></canvas>
-      </div>
-      <div class="chart-cell full">
-        <h3>Bambu P1S — aktívny výkon (W)</h3>
+        <div class="chart-head"><h3>Aktívny výkon tlačiarne (W)</h3></div>
         <canvas id="ch-power"></canvas>
       </div>
+      <div class="chart-cell">
+        <div class="chart-head"><h3>Dvere — história (otvorené / zatvorené)</h3></div>
+        <canvas id="ch-door"></canvas>
+      </div>
     </div>
-
-  </div>
-
-  <div id="tab-report">
-    <div class="report-wrap">
-      <div class="report-updated" id="r-updated">—</div>
-      <div id="report-rows"></div>
-      <div class="report-action-box" id="report-action"></div>
-    </div>
-  </div>
+  </section>
 
 </main>
 
+<!-- ════════════════════ JEDNODUCHÝ REŽIM (glance view) ════════════════════ -->
+<section id="easy-view" class="easy-view" aria-label="Jednoduchý prehľad">
+  <div class="easy-head">
+    <h2>Prehľad v reálnom čase</h2>
+    <span class="updated" id="easy-updated">—</span>
+  </div>
+
+  <div class="easy-tiles">
+    <div class="easy-tile" id="etile-out">
+      <div class="et-label">🌡 Vonku · Teplota</div>
+      <div class="et-value" id="e-out-temp">—</div>
+      <div class="et-sub" id="e-out-sub">—</div>
+    </div>
+    <div class="easy-tile" id="etile-temp">
+      <div class="et-label">🏫 V triede · Teplota</div>
+      <div class="et-value" id="e-in-temp">—</div>
+      <div class="et-state" id="e-in-temp-state">—</div>
+    </div>
+    <div class="easy-tile big" id="etile-co2">
+      <div class="et-label">🌬 V triede · CO₂ <span class="et-tag">kvalita vzduchu</span></div>
+      <div class="et-value" id="e-co2">—</div>
+      <div class="et-state" id="e-co2-state">—</div>
+    </div>
+    <div class="easy-tile" id="etile-hum">
+      <div class="et-label">💧 V triede · Vlhkosť</div>
+      <div class="et-value" id="e-hum">—</div>
+      <div class="et-state" id="e-hum-state">—</div>
+    </div>
+  </div>
+
+  <div class="easy-cams">
+    <div class="camera-card">
+      <div class="camera-label">Pohľad na centrum</div>
+      <div class="camera-frame">
+        <img id="cam-e0" class="camera-img" alt="Kamera — centrum" loading="lazy" tabindex="0" role="button" title="Kliknite pre zväčšenie" />
+        <span class="cam-zoom" aria-hidden="true">⤢ Zväčšiť</span>
+      </div>
+      <div class="camera-foot"><span id="cam-e0-time">—</span></div>
+    </div>
+    <div class="camera-card">
+      <div class="camera-label">Pohľad na Mlynárce</div>
+      <div class="camera-frame">
+        <img id="cam-e1" class="camera-img" alt="Kamera — Mlynárce" loading="lazy" tabindex="0" role="button" title="Kliknite pre zväčšenie" />
+        <span class="cam-zoom" aria-hidden="true">⤢ Zväčšiť</span>
+      </div>
+      <div class="camera-foot"><span id="cam-e1-time">—</span></div>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <span>Dáta: <a href="https://projekttb.sksnr.sk/data/" target="_blank" rel="noopener">projekttb.sksnr.sk</a></span>
+  <span>Meteostanica Hrad · DEMO prototyp</span>
+</footer>
+
+<!-- ══ CAMERA LIGHTBOX ══ -->
+<div id="cam-modal" class="cam-modal" hidden role="dialog" aria-modal="true" aria-label="Zväčšený pohľad kamery">
+  <button class="cam-modal-close" id="cam-modal-close" type="button" aria-label="Zavrieť">✕</button>
+  <figure class="cam-modal-fig">
+    <img id="cam-modal-img" alt="" />
+    <figcaption class="cam-modal-cap">
+      <span id="cam-modal-label">—</span>
+      <span id="cam-modal-time">—</span>
+    </figcaption>
+  </figure>
+</div>
+
 <script>
-const API = 'https://projekttb.sksnr.sk/data/api.php';
-let activeHours = 6;
-let charts = {};
+/* ════════════════════════════════════════════════════════════════
+   Meteostanica — Hrad · application logic
+   Data source: https://projekttb.sksnr.sk/data/  (Basic Auth)
 
-const DIRS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
-function degToDir(d) { return DIRS[Math.round(d / 22.5) % 16]; }
-function fmt(v, dec=1) { return v == null ? '—' : Number(v).toFixed(dec); }
-function limitForHours(h) { return Math.ceil(h * 4); }
+   NOTE: This is a static client-side DEMO, so the API credentials
+   below are necessarily visible to the browser. In production the
+   request should go through a backend proxy that holds the secret.
+   ════════════════════════════════════════════════════════════════ */
 
-async function fetchData(limit) {
-  const res = await fetch(`${API}?source=0&sort=timestamp&dir=desc&limit=${limit}`, {
-    headers: { Authorization: 'Basic ' + btoa('sks:kolbe') }
-  });
-  if (!res.ok) throw new Error(res.status);
+'use strict';
+
+/* ── Config & source map ── */
+const CFG = {
+  apiBase: 'https://projekttb.sksnr.sk/data',
+  user: 'sks',
+  pass: 'kolbe',
+};
+
+const SRC = {
+  weather: 0,
+  ambient: 1,
+  power:   2,
+  lux:     3,
+  door5:   8,
+  // TH sensor 01..20 → sources 9..28
+  th: Array.from({ length: 20 }, (_, i) => 9 + i),
+};
+
+const CAMERAS = [
+  { id: 'cam-0', cam: 0, timeId: 'cam-0-time' },
+  { id: 'cam-1', cam: 1, timeId: 'cam-1-time' },
+];
+// Same two cameras, mirrored into the simple-mode view.
+const EASY_CAMERAS = [
+  { id: 'cam-e0', cam: 0, timeId: 'cam-e0-time' },
+  { id: 'cam-e1', cam: 1, timeId: 'cam-e1-time' },
+];
+const ALL_CAMERAS = [...CAMERAS, ...EASY_CAMERAS];   // for lightbox lookup
+
+const POLL = { domov: 60_000, skola: 120_000, it: 30_000, camera: 30_000 };
+
+/* Approx sampling cadence (rows/hour) per source family — used to size range fetches.
+   Over-fetch is harmless (we trim to the exact window), so these lean generous. */
+const CAD = { weather: 4, th: 4, ambient: 8, power: 14, lux: 4 };
+
+/* ── Tiny helpers ── */
+const $ = (id) => document.getElementById(id);
+const authHeaders = () => ({ Authorization: 'Basic ' + btoa(`${CFG.user}:${CFG.pass}`) });
+const DIRS = ['S','SSV','SV','VSV','V','VJV','JV','JJV','J','JJZ','JZ','ZJZ','Z','ZSZ','SZ','SSZ']; // sk compass
+const degToDir = (d) => d == null ? '—' : DIRS[Math.round(d / 22.5) % 16];
+const fmt = (v, dec = 1) => (v == null || Number.isNaN(Number(v))) ? '—' : Number(v).toFixed(dec);
+const mean = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+
+function setText(id, txt) { const el = $(id); if (el) el.textContent = txt; }
+function setHTML(id, html) { const el = $(id); if (el) el.innerHTML = html; }
+
+function timeLabel(ts, hours) {
+  if (!ts) return '';
+  const t = ts.slice(11, 16);          // HH:MM
+  if (hours == null || hours <= 24) return t;
+  return ts.slice(5, 10) + ' ' + t;    // MM-DD HH:MM
+}
+
+/* ── Timestamps & freshness ──
+   API timestamps look like "2026-06-10 20:15:00" (no timezone). Safari won't parse the
+   space form, so swap in a 'T' and let it parse as LOCAL time. */
+const tsToMs = (ts) => (ts ? new Date(ts.replace(' ', 'T')).getTime() : NaN);
+
+/* Friendly stamp: "dnes 20:15" · "včera 19:40" · "08.06. 14:11" */
+function prettyStamp(ts) {
+  const ms = tsToMs(ts);
+  if (Number.isNaN(ms)) return ts || '—';
+  const d = new Date(ms), now = new Date();
+  const hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  const yest = new Date(now); yest.setDate(now.getDate() - 1);
+  if (d.toDateString() === now.toDateString()) return 'dnes ' + hm;
+  if (d.toDateString() === yest.toDateString()) return 'včera ' + hm;
+  return String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0') + '. ' + hm;
+}
+
+/* Is the newest reading older than maxAgeMin? (relative to the client clock) */
+function isStale(ts, maxAgeMin) {
+  const ms = tsToMs(ts);
+  if (Number.isNaN(ms)) return false;
+  return (Date.now() - ms) / 60000 > maxAgeMin;
+}
+
+/* Write an "Updated: …" label with a friendly time + a staleness flag. */
+function setUpdated(id, ts, maxAgeMin, prefix = '') {
+  const el = $(id);
+  if (!el) return;
+  const stale = isStale(ts, maxAgeMin);
+  el.textContent = prefix + prettyStamp(ts) + (stale ? ' · ⚠ neaktuálne' : '');
+  el.classList.toggle('stale', stale);
+}
+
+/* Today's date as the sensors report it (LOCAL "YYYY-MM-DD", not UTC). */
+function localToday() {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+}
+
+/* ── Connection status (header dot) ── */
+function setOnline(ok) {
+  const dot = $('dot');
+  if (dot) { dot.className = ok ? '' : 'error'; dot.setAttribute('aria-label', ok ? 'Pripojené' : 'Chyba spojenia'); }
+  if (ok) setText('last-update', 'Aktualizované ' + new Date().toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' }));
+  else setText('last-update', 'Chyba spojenia');
+}
+function showError(id, msg) {
+  const el = $(id);
+  if (!el) return;
+  if (msg) { el.textContent = '⚠ ' + msg; el.hidden = false; }
+  else el.hidden = true;
+}
+
+/* ── API layer ── */
+async function apiRows(source, { limit = 1, dir = 'desc' } = {}) {
+  const url = `${CFG.apiBase}/api.php?source=${source}&sort=timestamp&dir=${dir}&limit=${limit}`;
+  const res = await fetch(url, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`HTTP ${res.status} (zdroj ${source})`);
   const json = await res.json();
-  return json.rows.reverse();
+  return Array.isArray(json.rows) ? json.rows : [];
+}
+// newest-first → return chronological (oldest-first) for charts
+async function apiSeries(source, limit) {
+  const rows = await apiRows(source, { limit });
+  return rows.slice().reverse();
+}
+const latestRow = async (source) => (await apiRows(source, { limit: 1 }))[0] || null;
+const limitForHours = (h) => Math.max(4, Math.ceil(h * 4));
+
+/* Fetch a source and trim to the last `hours`, measured from the NEWEST returned row
+   (so it's timezone-independent and never empties just because the client clock drifts). */
+async function seriesForHours(source, hours, cadence) {
+  const limit = Math.min(2600, Math.max(8, Math.ceil(hours * cadence * 1.4) + 8));
+  const rows = await apiSeries(source, limit);   // chronological (oldest → newest)
+  if (rows.length < 2) return rows;
+  const newest = tsToMs(rows[rows.length - 1].timestamp);
+  if (Number.isNaN(newest)) return rows;
+  const cutoff = newest - hours * 3600 * 1000;
+  const trimmed = rows.filter((r) => tsToMs(r.timestamp) >= cutoff);
+  return trimmed.length ? trimmed : rows.slice(-4);
 }
 
-function setCard(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.innerHTML = val;
+/* ════════════════════════════════════════════════════════════════
+   CSV EXPORT
+   ════════════════════════════════════════════════════════════════ */
+const exportRegistry = {};
+function registerExport(key, headers, rows) { exportRegistry[key] = { headers, rows }; }
+function downloadCSV(key) {
+  const data = exportRegistry[key];
+  if (!data || !data.rows.length) { alert('Žiadne dáta na export.'); return; }
+  const esc = (v) => {
+    const s = v == null ? '' : String(v);
+    return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const lines = [data.headers.map(esc).join(',')];
+  for (const r of data.rows) lines.push(r.map(esc).join(','));
+  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `meteostanica_${key}_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.csv-btn');
+  if (btn) downloadCSV(btn.dataset.export);
+});
+
+/* ════════════════════════════════════════════════════════════════
+   CHARTS (theme-aware)
+   ════════════════════════════════════════════════════════════════ */
+const charts = {};
+const css = (name) => getComputedStyle(document.body).getPropertyValue(name).trim();
+
+/* hex → rgba. Canvas does NOT reliably parse CSS color-mix(), so we build
+   translucent fills ourselves from the (hex) theme variables. */
+function hexA(hex, a) {
+  if (typeof hex !== 'string' || hex[0] !== '#') return hex;
+  let h = hex.slice(1);
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  const n = parseInt(h, 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
 }
 
-function updateCurrentCards(row) {
-  setCard('c-temp', fmt(row.temperature) + ' °C');
-  setCard('c-feels', 'Pocitová ' + fmt(row.feels_like) + ' °C');
-  setCard('c-hum', fmt(row.humidity, 0) + ' %');
-  setCard('c-pres', fmt(row.pressure, 0) + ' hPa');
-  setCard('c-wind', fmt(row.wind_speed) + ' m/s');
-  setCard('c-wdir', degToDir(row.wind_direction) + ' ' + fmt(row.wind_direction, 0) + '°');
-  setCard('c-rain', fmt(row.rain_1h) + ' mm');
-  setCard('c-snow', 'Sneh ' + fmt(row.snow_1h) + ' mm');
-  setCard('c-cloud', fmt(row.cloudiness, 0) + ' %');
-  setCard('c-ghi', fmt(row.ghi, 0) + ' W/m²');
-  setCard('c-cghi', 'Clear sky ' + fmt(row.clear_sky_ghi, 0) + ' W/m²');
-
-  const arrow = document.getElementById('wind-arrow');
-  if (arrow) arrow.style.transform = `rotate(${row.wind_direction}deg)`;
-
-  document.getElementById('last-update').textContent = row.timestamp;
-  document.getElementById('dot').className = '';
+function palette() {
+  return {
+    crimson: css('--crimson'),
+    navy:    css('--navy'),
+    blue:    '#3a7ca5',
+    text:    css('--navy'),
+    grid:    css('--cream-dim'),
+    tipBg:   css('--black'),
+    tipFg:   css('--cream'),
+  };
 }
 
-const C = {
-  crimson: '#4B0000',
-  navy: '#1B2E3C',
-  cream: '#F3E3E2',
-  dim: '#d9c9c8',
-  mid: '#8a7f7f',
-};
-
-const CHART_OPTS = {
-  responsive: true,
-  maintainAspectRatio: true,
-  animation: { duration: 300 },
-  spanGaps: true,
-  interaction: { mode: 'index', intersect: false },
-  plugins: {
-    legend: { labels: { color: C.navy, boxWidth: 10, font: { family: 'IBM Plex Mono', size: 10 } } },
-    tooltip: {
-      backgroundColor: '#0C0C1E',
-      titleColor: '#F3E3E2',
-      bodyColor: '#F3E3E2',
-      borderColor: '#4B0000',
-      borderWidth: 1,
-      titleFont: { family: 'IBM Plex Mono', size: 11 },
-      bodyFont: { family: 'IBM Plex Mono', size: 11 },
-      padding: 10,
-    }
-  },
-  scales: {
-    x: {
-      ticks: { color: C.mid, maxTicksLimit: 7, maxRotation: 0, font: { family: 'IBM Plex Mono', size: 9 } },
-      grid: { color: C.dim }
+function baseOptions({ unit = '', dual = false } = {}) {
+  const p = palette();
+  const axis = {
+    ticks: { color: p.text, font: { family: 'IBM Plex Mono', size: 9 }, maxRotation: 0 },
+    grid: { color: p.grid },
+  };
+  const opts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 300 },
+    spanGaps: true,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { labels: { color: p.text, boxWidth: 10, font: { family: 'IBM Plex Mono', size: 10 } } },
+      tooltip: {
+        backgroundColor: p.tipBg, titleColor: p.tipFg, bodyColor: p.tipFg,
+        borderColor: p.crimson, borderWidth: 1, padding: 10,
+        titleFont: { family: 'IBM Plex Mono', size: 11 },
+        bodyFont: { family: 'IBM Plex Mono', size: 11 },
+        callbacks: {
+          label: (ctx) => {
+            const u = ctx.dataset.unit != null ? ctx.dataset.unit : unit;
+            const v = ctx.parsed.y;
+            return `${ctx.dataset.label}: ${v == null ? '—' : v}${u ? ' ' + u : ''}`;
+          },
+        },
+      },
     },
-    y: {
-      ticks: { color: C.mid, font: { family: 'IBM Plex Mono', size: 9 } },
-      grid: { color: C.dim }
-    }
+    scales: {
+      x: { ...axis, ticks: { ...axis.ticks, maxTicksLimit: 8 } },
+      y: { ...axis },
+    },
+  };
+  if (dual) {
+    opts.scales.y.position = 'left';
+    opts.scales.y2 = { ...axis, position: 'right', grid: { display: false } };
   }
-};
+  return opts;
+}
 
 function makeChart(id, config) {
-  const ctx = document.getElementById(id).getContext('2d');
+  const el = $(id);
+  if (!el) return;
   if (charts[id]) charts[id].destroy();
-  charts[id] = new Chart(ctx, config);
+  charts[id] = new Chart(el.getContext('2d'), config);
+  const cell = el.closest('.chart-cell');
+  if (cell) cell.classList.remove('loading');   // clear the "Načítavam…" placeholder
 }
 
-function buildCharts(rows) {
-  const labels = rows.map(r => {
-    if (activeHours <= 24) return r.timestamp.slice(11, 16);          // HH:MM
-    if (activeHours <= 48) return r.timestamp.slice(8, 13).replace(' ', ' '); // DD HH:MM
-    return r.timestamp.slice(5, 16).replace('T', ' ');                // MM-DD HH:MM
+/* Show a faint placeholder on every not-yet-rendered chart cell in a panel. */
+function markLoading(panelId) {
+  document.querySelectorAll(`#${panelId} .chart-cell`).forEach((cell) => {
+    const cv = cell.querySelector('canvas');
+    if (cv && !charts[cv.id]) cell.classList.add('loading');
   });
+}
+
+const lineDS = (label, data, color, { unit = '', fill = false, dash = null, axis = 'y', width = 1.6 } = {}) => ({
+  label, data, unit,
+  borderColor: color,
+  backgroundColor: fill ? hexA(color, 0.12) : 'transparent',
+  fill, tension: .3, pointRadius: 0, borderWidth: width,
+  borderDash: dash || [], yAxisID: axis,
+});
+
+/* ════════════════════════════════════════════════════════════════
+   SCREEN 1 — DOMOV (weather + cameras)
+   ════════════════════════════════════════════════════════════════ */
+let weatherHours = 6;
+
+function renderWeatherCurrent(r) {
+  setText('w-temp', fmt(r.temperature) + ' °C');
+  setText('w-feels', 'Pocitová ' + fmt(r.feels_like) + ' °C');
+  setText('w-hum', fmt(r.humidity, 0) + ' %');
+  setText('w-pres', fmt(r.pressure, 0) + ' hPa');
+  setText('w-wind', fmt(r.wind_speed) + ' m/s');
+  setText('w-wdir', degToDir(r.wind_direction) + ' · ' + fmt(r.wind_direction, 0) + '°');
+  setText('w-rain', fmt(r.rain_1h) + ' mm');
+  setText('w-snow', 'Sneh ' + fmt(r.snow_1h) + ' mm');
+  setText('w-cloud', fmt(r.cloudiness, 0) + ' %');
+  setText('w-ghi', fmt(r.ghi, 0) + ' W/m²');
+  setText('w-cghi', 'Clear sky ' + fmt(r.clear_sky_ghi, 0) + ' W/m²');
+}
+
+function buildWeatherCharts(rows) {
+  const labels = rows.map((r) => timeLabel(r.timestamp, weatherHours));
+  const p = palette();
 
   makeChart('ch-temp', {
     type: 'line',
     data: { labels, datasets: [
-      { label: 'Teplota °C', data: rows.map(r => r.temperature ?? null),
-        borderColor: C.crimson, backgroundColor: 'rgba(75,0,0,.06)', fill: true,
-        tension: .3, pointRadius: 0, borderWidth: 1.5 },
-      { label: 'Pocitová °C', data: rows.map(r => r.feels_like ?? null),
-        borderColor: C.navy, backgroundColor: 'transparent', fill: false,
-        tension: .3, pointRadius: 0, borderWidth: 1, borderDash: [4,3] }
+      lineDS('Teplota', rows.map(r => r.temperature), p.crimson, { unit: '°C', fill: true }),
+      lineDS('Pocitová', rows.map(r => r.feels_like), p.navy, { unit: '°C', dash: [4, 3], width: 1.2 }),
     ]},
-    options: CHART_OPTS
+    options: baseOptions({ unit: '°C' }),
   });
 
   makeChart('ch-hum', {
     type: 'line',
     data: { labels, datasets: [
-      { label: 'Vlhkosť %', data: rows.map(r => r.humidity ?? null),
-        borderColor: C.navy, backgroundColor: 'rgba(27,46,60,.06)', fill: true,
-        tension: .3, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y' },
-      { label: 'Tlak hPa', data: rows.map(r => r.pressure ?? null),
-        borderColor: C.crimson, backgroundColor: 'transparent', fill: false,
-        tension: .3, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y2' }
+      lineDS('Vlhkosť', rows.map(r => r.humidity), p.navy, { unit: '%', fill: true, axis: 'y' }),
+      lineDS('Tlak', rows.map(r => r.pressure), p.crimson, { unit: 'hPa', axis: 'y2' }),
     ]},
-    options: { ...CHART_OPTS, scales: {
-      ...CHART_OPTS.scales,
-      y:  { ...CHART_OPTS.scales.y, position: 'left' },
-      y2: { ...CHART_OPTS.scales.y, position: 'right', grid: { display: false } }
-    }}
+    options: baseOptions({ dual: true }),
   });
 
   makeChart('ch-wind', {
     type: 'line',
-    data: { labels, datasets: [
-      { label: 'Rýchlosť m/s', data: rows.map(r => r.wind_speed ?? null),
-        borderColor: C.navy, backgroundColor: 'rgba(27,46,60,.06)', fill: true,
-        tension: .3, pointRadius: 0, borderWidth: 1.5 }
-    ]},
-    options: CHART_OPTS
+    data: { labels, datasets: [ lineDS('Rýchlosť', rows.map(r => r.wind_speed), p.navy, { unit: 'm/s', fill: true }) ]},
+    options: baseOptions({ unit: 'm/s' }),
   });
 
   makeChart('ch-rain', {
     type: 'bar',
-    data: { labels, datasets: [
-      { label: 'Dážď mm/h', data: rows.map(r => r.rain_1h ?? null),
-        backgroundColor: 'rgba(27,46,60,.5)', borderColor: C.navy, borderWidth: 1 }
-    ]},
-    options: CHART_OPTS
+    data: { labels, datasets: [{ label: 'Dážď', unit: 'mm/h', data: rows.map(r => r.rain_1h),
+      backgroundColor: hexA(p.navy, 0.55), borderColor: p.navy, borderWidth: 1 }]},
+    options: baseOptions({ unit: 'mm/h' }),
   });
 
   makeChart('ch-ghi', {
     type: 'line',
     data: { labels, datasets: [
-      { label: 'GHI W/m²', data: rows.map(r => r.ghi ?? null),
-        borderColor: C.crimson, backgroundColor: 'rgba(75,0,0,.08)', fill: true,
-        tension: .4, pointRadius: 0, borderWidth: 1.5 },
-      { label: 'Clear Sky W/m²', data: rows.map(r => r.clear_sky_ghi ?? null),
-        borderColor: C.navy, backgroundColor: 'transparent', fill: false,
-        tension: .4, pointRadius: 0, borderWidth: 1, borderDash: [5,4] }
+      lineDS('GHI', rows.map(r => r.ghi), p.crimson, { unit: 'W/m²', fill: true }),
+      lineDS('Clear Sky', rows.map(r => r.clear_sky_ghi), p.navy, { unit: 'W/m²', dash: [5, 4], width: 1.2 }),
     ]},
-    options: CHART_OPTS
+    options: baseOptions({ unit: 'W/m²' }),
   });
+
+  registerExport('weather',
+    ['timestamp', 'temperature', 'feels_like', 'humidity', 'pressure', 'wind_speed', 'wind_direction', 'rain_1h', 'cloudiness', 'ghi', 'clear_sky_ghi'],
+    rows.map(r => [r.timestamp, r.temperature, r.feels_like, r.humidity, r.pressure, r.wind_speed, r.wind_direction, r.rain_1h, r.cloudiness, r.ghi, r.clear_sky_ghi]));
 }
 
-async function refresh() {
+async function refreshWeather() {
+  markLoading('tab-domov');
   try {
-    const rows = await fetchData(limitForHours(activeHours));
+    const rows = await apiSeries(SRC.weather, limitForHours(weatherHours));
     if (!rows.length) return;
-    updateCurrentCards(rows[rows.length - 1]);
-    buildCharts(rows);
+    renderWeatherCurrent(rows[rows.length - 1]);
+    buildWeatherCharts(rows);
+    setUpdated('domov-updated', rows[rows.length - 1].timestamp, 40, 'Počasie: ');
+    showError('domov-error', null);
+    setOnline(true);
   } catch (e) {
-    console.error(e);
-    document.getElementById('dot').className = 'error';
-    document.getElementById('last-update').textContent = 'Chyba načítania';
+    console.error('weather', e);
+    showError('domov-error', 'Nepodarilo sa načítať počasie: ' + e.message);
+    setOnline(false);
   }
 }
 
-document.querySelectorAll('.range-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    activeHours = parseInt(btn.dataset.hours);
-    refresh();
-  });
-});
+/* ── Cameras ── */
+let camModalCam = null;   // cam index currently shown in the lightbox, or null
 
-refresh();
-setInterval(refresh, 60_000);
-
-function toggleTheme() {
-  const dark = document.body.classList.toggle('dark');
-  localStorage.setItem('theme', dark ? 'dark' : 'light');
-}
-if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark');
-
-const CAM_URL = 'https://projekttb.sksnr.sk/data/camera.php?cam=0';
-const AUTH_HDR = { Authorization: 'Basic ' + btoa('sks:kolbe') };
-
-async function refreshCamera() {
+async function refreshOneCamera(c) {
   try {
-    const res = await fetch(CAM_URL + '&_=' + Date.now(), { headers: AUTH_HDR });
+    const res = await fetch(`${CFG.apiBase}/camera.php?cam=${c.cam}&_=${Date.now()}`, { headers: authHeaders() });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const blob = await res.blob();
-    const img = document.getElementById('cam-0');
-    const old = img.src;
-    img.src = URL.createObjectURL(blob);
-    if (old.startsWith('blob:')) URL.revokeObjectURL(old);
-  } catch(e) { console.error('cam', e); }
-}
-
-const CAMERAS = [
-  { id: 'cam-0', url: 'https://projekttb.sksnr.sk/data/camera.php?cam=0' },
-  { id: 'cam-1', url: 'https://projekttb.sksnr.sk/data/camera.php?cam=1' },
-];
-
-async function refreshCamera(cam) {
-  try {
-    const res = await fetch(cam.url + '&_=' + Date.now(), { headers: AUTH_HDR });
-    const blob = await res.blob();
-    const img = document.getElementById(cam.id);
+    const img = $(c.id);
     if (!img) return;
     const old = img.src;
     img.src = URL.createObjectURL(blob);
-    if (old.startsWith('blob:')) URL.revokeObjectURL(old);
-  } catch(e) { console.error('cam', e); }
+    // If the lightbox is open on this camera, point it at the fresh frame BEFORE
+    // we revoke the old object URL (otherwise the enlarged image would go blank).
+    const stamp = new Date().toLocaleTimeString('sk-SK');
+    if (camModalCam === c.cam) {
+      const m = $('cam-modal-img'); if (m) m.src = img.src;
+      setText('cam-modal-time', stamp);
+    }
+    if (old && old.startsWith('blob:')) URL.revokeObjectURL(old);
+    setText(c.timeId, stamp);
+  } catch (e) {
+    console.error('camera ' + c.cam, e);
+    setText(c.timeId, 'chyba načítania');
+  }
+}
+function refreshCameras() {
+  CAMERAS.forEach(refreshOneCamera);
+  setText('cam-updated', 'Obnovené ' + new Date().toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' }));
 }
 
-function refreshAllCameras() { CAMERAS.forEach(refreshCamera); }
-refreshAllCameras();
-setInterval(refreshAllCameras, 10_000);
+/* ── Camera lightbox (click a frame to enlarge) ── */
+function openCamModal(c, imgEl) {
+  const modal = $('cam-modal');
+  if (!modal || !imgEl || !imgEl.src) return;
+  camModalCam = c.cam;
+  const card = imgEl.closest('.camera-card');
+  const label = card?.querySelector('.camera-label')?.textContent || 'Kamera';
+  const time = card?.querySelector('.camera-foot span')?.textContent || '';
+  const mImg = $('cam-modal-img');
+  mImg.src = imgEl.src;
+  mImg.alt = imgEl.alt || label;
+  setText('cam-modal-label', label);
+  setText('cam-modal-time', time);
+  modal.hidden = false;
+  $('cam-modal-close').focus();
+}
+function closeCamModal() {
+  const modal = $('cam-modal');
+  if (!modal || modal.hidden) return;
+  modal.hidden = true;
+  camModalCam = null;
+  const mImg = $('cam-modal-img');
+  if (mImg) mImg.removeAttribute('src');
+}
+document.addEventListener('click', (e) => {
+  const img = e.target.closest('.camera-img');
+  if (!img) return;
+  const c = ALL_CAMERAS.find((x) => x.id === img.id);
+  if (c) openCamModal(c, img);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { closeCamModal(); return; }
+  const t = e.target;
+  if ((e.key === 'Enter' || e.key === ' ') && t.classList && t.classList.contains('camera-img')) {
+    e.preventDefault();
+    const c = ALL_CAMERAS.find((x) => x.id === t.id);
+    if (c) openCamModal(c, t);
+  }
+});
+$('cam-modal').addEventListener('click', (e) => { if (e.target.id === 'cam-modal') closeCamModal(); });
+$('cam-modal-close').addEventListener('click', closeCamModal);
 
-// ── Škola sensors ──
-async function fetchSkola() {
+async function refreshDomov() {
+  await Promise.all([refreshWeather(), Promise.resolve(refreshCameras())]);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   SCREEN 2 — ŠKOLA (TH 1–20)
+   ════════════════════════════════════════════════════════════════ */
+let thSensors = [];      // [{ n, name, source, rows, ok }]
+let selectedTH = 0;      // index into thSensors
+let skolaHours = 24;     // selected time range
+
+async function fetchTH(hours) {
+  const results = await Promise.allSettled(SRC.th.map((s) => seriesForHours(s, hours, CAD.th)));
+  return results.map((res, i) => ({
+    n: i + 1,
+    name: 'TH' + String(i + 1).padStart(2, '0'),
+    source: SRC.th[i],
+    ok: res.status === 'fulfilled' && res.value.length > 0,
+    rows: res.status === 'fulfilled' ? res.value : [],
+  }));
+}
+
+const lastTemp = (s) => s.rows.length ? s.rows[s.rows.length - 1].TempC_SHT : null;
+const lastHum  = (s) => s.rows.length ? s.rows[s.rows.length - 1].Hum_SHT : null;
+const lastBat  = (s) => s.rows.length ? s.rows[s.rows.length - 1].BatV : null;
+
+/* Average / min / max series aligned from the most recent reading backwards */
+function alignedSeries(sensors, field, depth) {
+  const out = [];
+  for (let k = 0; k < depth; k++) {
+    const vals = [];
+    let label = null;
+    for (const s of sensors) {
+      const idx = s.rows.length - 1 - k;
+      if (idx < 0) continue;
+      const v = s.rows[idx][field];
+      if (v != null) { vals.push(v); if (!label) label = s.rows[idx].timestamp; }
+    }
+    if (vals.length) out.push({ avg: mean(vals), min: Math.min(...vals), max: Math.max(...vals), label, count: vals.length });
+  }
+  return out.reverse();
+}
+
+function renderSkola() {
+  const online = thSensors.filter((s) => s.ok);
+  const temps = online.map(lastTemp).filter((v) => v != null);
+  const hums  = online.map(lastHum).filter((v) => v != null);
+
+  const avgT = mean(temps), avgH = mean(hums);
+  setText('sk-avg-temp', fmt(avgT) + ' °C');
+  setText('sk-avg-hum', fmt(avgH, 0) + ' %');
+  setText('sk-online', String(online.length));
+
+  const withT = online.filter((s) => lastTemp(s) != null);
+  if (withT.length) {
+    let minS = withT[0], maxS = withT[0];
+    for (const s of withT) {
+      if (lastTemp(s) < lastTemp(minS)) minS = s;
+      if (lastTemp(s) > lastTemp(maxS)) maxS = s;
+    }
+    setText('sk-minmax', fmt(lastTemp(minS)) + ' / ' + fmt(lastTemp(maxS)) + ' °C');
+    setText('sk-minmax-where', `${minS.name} ↓ · ${maxS.name} ↑`);
+  }
+
+  const p = palette();
+  const labels = thSensors.map((s) => s.name);
+
+  // Current temperature per sensor (bar) + average reference line
+  const tempData = thSensors.map(lastTemp);
+  makeChart('ch-th-temp', {
+    type: 'bar',
+    data: { labels, datasets: [
+      { type: 'bar', label: 'Teplota', unit: '°C', data: tempData, order: 2,
+        backgroundColor: tempData.map((v) => v == null ? p.grid
+          : v < avgT - 0.4 ? hexA(p.blue, 0.7)
+          : v > avgT + 0.4 ? hexA(p.crimson, 0.65)
+          : hexA(p.navy, 0.45)),
+        borderWidth: 0 },
+      { type: 'line', label: 'Priemer', unit: '°C', data: labels.map(() => avgT), order: 1,
+        borderColor: p.crimson, borderWidth: 1.4, borderDash: [5, 4], pointRadius: 0, fill: false },
+    ]},
+    options: baseOptions({ unit: '°C' }),
+  });
+
+  // Current humidity per sensor (bar)
+  makeChart('ch-th-hum', {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Vlhkosť', unit: '%', data: thSensors.map(lastHum),
+      backgroundColor: hexA(p.navy, 0.45), borderColor: p.navy, borderWidth: 1 }]},
+    options: baseOptions({ unit: '%' }),
+  });
+
+  // Average temperature history with min–max band (rows are already windowed to the range)
+  const depth = Math.max(...thSensors.map((s) => s.rows.length), 0);
+  const series = alignedSeries(online, 'TempC_SHT', depth);
+  const avgLabels = series.map((d) => timeLabel(d.label, skolaHours));
+  makeChart('ch-th-avg', {
+    type: 'line',
+    data: { labels: avgLabels, datasets: [
+      { label: 'Max', unit: '°C', data: series.map(d => d.max), borderColor: 'transparent',
+        backgroundColor: hexA(p.crimson, 0.13), pointRadius: 0, fill: '+1' },
+      { label: 'Min', unit: '°C', data: series.map(d => d.min), borderColor: 'transparent',
+        backgroundColor: 'transparent', pointRadius: 0, fill: false },
+      { label: 'Priemer', unit: '°C', data: series.map(d => d.avg), borderColor: p.crimson,
+        borderWidth: 1.8, pointRadius: 0, tension: .3, fill: false },
+    ]},
+    options: baseOptions({ unit: '°C' }),
+  });
+
+  registerExport('th-current', ['sensor', 'source', 'temperature_C', 'humidity_%', 'battery_V', 'timestamp'],
+    thSensors.map((s) => [s.name, s.source, lastTemp(s), lastHum(s), lastBat(s),
+      s.rows.length ? s.rows[s.rows.length - 1].timestamp : '']));
+  registerExport('th-avg', ['timestamp', 'avg_C', 'min_C', 'max_C', 'sensors'],
+    series.map((d) => [d.label, fmt(d.avg, 2), d.min, d.max, d.count]));
+
+  renderTHGrid(avgT);
+  renderTHDetail();
+}
+
+function renderTHGrid(avgT) {
+  const grid = $('th-grid');
+  if (!grid) return;
+  const temps = thSensors.map(lastTemp).filter((v) => v != null);
+  const lo = temps.length ? Math.min(...temps) : 0;
+  const hi = temps.length ? Math.max(...temps) : 1;
+  grid.innerHTML = thSensors.map((s, i) => {
+    const t = lastTemp(s), h = lastHum(s);
+    const dev = t == null ? '' : t < avgT - 0.4 ? 'cold' : t > avgT + 0.4 ? 'warm' : 'norm';
+    const pct = (t == null || hi === lo) ? 0 : Math.round(((t - lo) / (hi - lo)) * 100);
+    return `<div class="th-card${i === selectedTH ? ' selected' : ''}${s.ok ? '' : ' offline'}" data-th="${i}">
+      <div class="th-dev ${dev}"></div>
+      <div class="th-name">${s.name}</div>
+      <div class="th-temp">${fmt(t)}<span style="font-size:.7rem;opacity:.5"> °C</span></div>
+      <div class="th-hum">${fmt(h, 0)} % · ${fmt(lastBat(s), 2)} V</div>
+      <div class="th-bar"><i style="width:${pct}%"></i></div>
+    </div>`;
+  }).join('');
+}
+
+function renderTHDetail() {
+  const s = thSensors[selectedTH];
+  if (!s) return;
+  setText('th-detail-name', s.name);
+  const p = palette();
+  const labels = s.rows.map((r) => timeLabel(r.timestamp, skolaHours));
+  makeChart('ch-th-detail', {
+    type: 'line',
+    data: { labels, datasets: [
+      lineDS('Teplota', s.rows.map(r => r.TempC_SHT), p.crimson, { unit: '°C', fill: true, axis: 'y' }),
+      lineDS('Vlhkosť', s.rows.map(r => r.Hum_SHT), p.navy, { unit: '%', dash: [4, 3], axis: 'y2' }),
+    ]},
+    options: baseOptions({ dual: true }),
+  });
+}
+
+async function refreshSkola() {
+  markLoading('tab-skola');
   try {
-    const [rDoor, rLux, rAmb, rPwr] = await Promise.all([
-      fetch(`https://projekttb.sksnr.sk/data/api.php?source=8&sort=timestamp&dir=desc&limit=48`, { headers: AUTH_HDR }),
-      fetch(`https://projekttb.sksnr.sk/data/api.php?source=3&sort=timestamp&dir=desc&limit=48`, { headers: AUTH_HDR }),
-      fetch(`https://projekttb.sksnr.sk/data/api.php?source=1&sort=timestamp&dir=desc&limit=48`, { headers: AUTH_HDR }),
-      fetch(`https://projekttb.sksnr.sk/data/api.php?source=2&sort=timestamp&dir=desc&limit=48`, { headers: AUTH_HDR }),
-    ]);
-    const doorData = (await rDoor.json()).rows.reverse();
-    const door = doorData[doorData.length - 1];
-    const luxData = (await rLux.json()).rows.reverse();
-    const ambData = (await rAmb.json()).rows.reverse();
-    const pwrData = (await rPwr.json()).rows.reverse();
-    const lux = luxData[luxData.length - 1];
-    const amb = ambData[ambData.length - 1];
-    const pwr = pwrData[pwrData.length - 1];
-
-    // Door
-    const isOpen = door.Exti_pin_level === 'Low';
-    setCard('s-door', isOpen ? 'OTVORENÉ' : 'ZATVORENÉ');
-    document.getElementById('s-door').classList.toggle('crimson', isOpen);
-    setCard('s-door-time', door.timestamp);
-    setCard('s-door-bat', 'Batéria: ' + fmt(door.BatV, 3) + ' V');
-
-    // Lux
-    setCard('s-lux', fmt(lux.ILL_lux, 0) + ' lux');
-    setCard('s-lux-bat', 'Batéria: ' + fmt(lux.BatV, 3) + ' V');
-
-    // Ambient
-    setCard('s-amb-temp', fmt(amb.temperature) + ' °C');
-    setCard('s-amb-hum', fmt(amb.humidity, 0) + ' %');
-    setCard('s-amb-co2', fmt(amb.co2, 0) + ' ppm');
-    setCard('s-amb-tvoc', fmt(amb.tvoc, 2) + ' ppb');
-    setCard('s-amb-pir', amb.pir ?? '—');
-    setCard('s-amb-bat', 'Batéria: ' + fmt(amb.battery, 0) + ' %');
-
-    // Power meter
-    setCard('s-pwr-status', pwr.socket_status === 'on' ? 'ZAPNUTÁ' : 'VYPNUTÁ');
-    document.getElementById('s-pwr-status').classList.toggle('crimson', pwr.socket_status === 'on');
-    setCard('s-pwr-power', fmt(pwr.active_power, 0) + ' W  ·  PF ' + fmt(pwr.power_factor, 0) + ' %');
-    setCard('s-pwr-voltage', fmt(pwr.voltage, 1) + ' V  ·  ' + fmt(pwr.current, 0) + ' mA');
-    setCard('s-pwr-consumption', 'Spotreba: ' + fmt(pwr.power_consumption, 0) + ' Wh');
-
-    const ambLabels = ambData.map(r => r.timestamp.slice(11, 16));
-    const luxLabels = luxData.map(r => r.timestamp.slice(11, 16));
-
-    makeChart('ch-co2', {
-      type: 'line',
-      data: { labels: ambLabels, datasets: [{
-        label: 'CO₂ ppm', data: ambData.map(r => r.co2 ?? null),
-        borderColor: C.crimson, backgroundColor: 'rgba(75,0,0,.06)', fill: true,
-        tension: .3, pointRadius: 0, borderWidth: 1.5
-      }]},
-      options: CHART_OPTS
-    });
-
-    makeChart('ch-skola-temp', {
-      type: 'line',
-      data: { labels: ambLabels, datasets: [
-        { label: 'Teplota °C', data: ambData.map(r => r.temperature ?? null),
-          borderColor: C.crimson, backgroundColor: 'rgba(75,0,0,.06)', fill: true,
-          tension: .3, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y' },
-        { label: 'Vlhkosť %', data: ambData.map(r => r.humidity ?? null),
-          borderColor: C.navy, backgroundColor: 'transparent', fill: false,
-          tension: .3, pointRadius: 0, borderWidth: 1.5, borderDash: [4,3], yAxisID: 'y2' }
-      ]},
-      options: { ...CHART_OPTS, scales: {
-        ...CHART_OPTS.scales,
-        y:  { ...CHART_OPTS.scales.y, position: 'left' },
-        y2: { ...CHART_OPTS.scales.y, position: 'right', grid: { display: false } }
-      }}
-    });
-
-    makeChart('ch-lux', {
-      type: 'line',
-      data: { labels: luxLabels, datasets: [{
-        label: 'Lux', data: luxData.map(r => r.ILL_lux ?? null),
-        borderColor: C.navy, backgroundColor: 'rgba(27,46,60,.06)', fill: true,
-        tension: .3, pointRadius: 0, borderWidth: 1.5
-      }]},
-      options: CHART_OPTS
-    });
-
-    makeChart('ch-tvoc', {
-      type: 'line',
-      data: { labels: ambLabels, datasets: [{
-        label: 'TVOC ppb', data: ambData.map(r => r.tvoc ?? null),
-        borderColor: C.navy, backgroundColor: 'rgba(27,46,60,.06)', fill: true,
-        tension: .3, pointRadius: 0, borderWidth: 1.5
-      }]},
-      options: CHART_OPTS
-    });
-
-    const doorLabels = doorData.map(r => r.timestamp.slice(11, 16));
-    makeChart('ch-door', {
-      type: 'line',
-      data: { labels: doorLabels, datasets: [{
-        label: 'Dvere', data: doorData.map(r => r.Exti_pin_level === 'Low' ? 1 : 0),
-        borderColor: C.crimson, backgroundColor: 'rgba(75,0,0,.08)', fill: true,
-        stepped: true, pointRadius: 3, pointBackgroundColor: C.crimson, borderWidth: 1.5
-      }]},
-      options: { ...CHART_OPTS, scales: {
-        ...CHART_OPTS.scales,
-        y: { ...CHART_OPTS.scales.y, min: -0.1, max: 1.1, ticks: { ...CHART_OPTS.scales.y.ticks,
-          callback: v => v === 1 ? 'Otvorené' : v === 0 ? 'Zatvorené' : '' } }
-      }}
-    });
-
-    const pwrLabels = pwrData.map(r => r.timestamp.slice(11, 16));
-    makeChart('ch-power', {
-      type: 'line',
-      data: { labels: pwrLabels, datasets: [{
-        label: 'Výkon W', data: pwrData.map(r => r.active_power ?? null),
-        borderColor: C.crimson, backgroundColor: 'rgba(75,0,0,.06)', fill: true,
-        tension: .3, pointRadius: 0, borderWidth: 1.5
-      }]},
-      options: CHART_OPTS
-    });
-
-  } catch(e) { console.error('skola', e); }
+    thSensors = await fetchTH(skolaHours);
+    const anyOk = thSensors.some((s) => s.ok);
+    if (!anyOk) throw new Error('žiadny TH senzor neodpovedal');
+    renderSkola();
+    const ts = thSensors.find((s) => s.ok).rows.slice(-1)[0].timestamp;
+    setUpdated('skola-updated', ts, 70, 'Aktualizované: ');
+    showError('skola-error', null);
+    setOnline(true);
+  } catch (e) {
+    console.error('skola', e);
+    showError('skola-error', 'Nepodarilo sa načítať TH senzory: ' + e.message);
+    setOnline(false);
+  }
 }
 
-// ── Report ──
+// TH card click → select for detail chart
+document.addEventListener('click', (e) => {
+  const card = e.target.closest('.th-card');
+  if (!card) return;
+  selectedTH = Number(card.dataset.th);
+  document.querySelectorAll('.th-card').forEach((c) => c.classList.toggle('selected', Number(c.dataset.th) === selectedTH));
+  renderTHDetail();
+});
+
+/* ════════════════════════════════════════════════════════════════
+   SCREEN 3 — TRIEDA IT (ambient + power + lux + door)
+   ════════════════════════════════════════════════════════════════ */
+let itHours = 12;        // selected time range for the environment-history charts
+
+/* Environment health checks (also feed the global alert banner) */
 const CHECKS = [
-  {
-    key: 'co2', label: 'CO₂', unit: 'ppm',
-    get: d => d.amb.co2,
+  { key: 'co2', label: 'CO₂', unit: 'ppm', get: (d) => d.amb && d.amb.co2,
     levels: [
-      { max: 800,  cls: 'ok',   text: 'Výborné',    note: 'Odporúčaná hodnota pre školské priestory je pod 800 ppm.' },
-      { max: 1200, cls: 'warn', text: 'Prijateľné',  note: 'Odporúča sa vetranie, hladina CO₂ stúpa.' },
-      { max: 1600, cls: 'bad',  text: 'Zlé',         note: 'Koncentrácia CO₂ je vysoká. Okamžite vetrajte.' },
-      { max: Infinity, cls: 'bad', text: 'Kritické', note: 'Nebezpečná hladina CO₂! Opustite miestnosť a vetrajte.' },
-    ]
-  },
-  {
-    key: 'tvoc', label: 'TVOC', unit: 'ppb',
-    get: d => d.amb.tvoc,
+      { max: 800,  cls: 'ok',   text: 'Výborné' },
+      { max: 1200, cls: 'warn', text: 'Zvýšené', action: 'Zvážte vetranie — CO₂ stúpa.' },
+      { max: 1600, cls: 'bad',  text: 'Vysoké',  action: 'Vetrajte — vysoká koncentrácia CO₂.' },
+      { max: Infinity, cls: 'bad', text: 'Kritické', action: 'Kritické CO₂! Okamžite vetrajte.' },
+    ]},
+  { key: 'tvoc', label: 'TVOC', unit: 'ppb', get: (d) => d.amb && d.amb.tvoc,
     levels: [
-      { max: 300,      cls: 'ok',   text: 'Výborné',   note: 'Kvalita vzduchu je dobrá.' },
-      { max: 500,      cls: 'warn', text: 'Stredné',   note: 'Mierne znečistenie. Zvážte vetranie.' },
-      { max: Infinity, cls: 'bad',  text: 'Zlé',       note: 'Vysoké organické látky vo vzduchu. Vetrajte.' },
-    ]
-  },
-  {
-    key: 'humidity', label: 'Vlhkosť', unit: '%',
-    get: d => d.amb.humidity,
-    levels: [
-      { min: 30, max: 60, cls: 'ok',   text: 'Optimálna',   note: 'Ideálna vlhkosť pre prácu a pobyt (30 – 60 %).' },
-      { min: 20, max: 70, cls: 'warn', text: 'Prijateľná',  note: 'Vlhkosť je mierne mimo optimálneho rozsahu.' },
-      { min: 0,  max: Infinity, cls: 'bad', text: 'Nevhodná', note: 'Príliš nízka alebo vysoká vlhkosť.' },
-    ],
-    classify(v) {
-      if (v >= 30 && v <= 60) return this.levels[0];
-      if (v >= 20 && v <= 70) return this.levels[1];
-      return this.levels[2];
-    }
-  },
-  {
-    key: 'temperature', label: 'Teplota', unit: '°C',
-    get: d => d.amb.temperature,
-    levels: [
-      { min: 20, max: 24, cls: 'ok',   text: 'Optimálna',  note: 'Ideálna teplota pre školské priestory (20 – 24 °C).' },
-      { min: 18, max: 26, cls: 'warn', text: 'Prijateľná', note: 'Teplota je mimo optimálneho rozsahu.' },
-      { min: 0,  max: Infinity, cls: 'bad', text: 'Nevhodná', note: 'Teplota je príliš nízka alebo vysoká.' },
-    ],
-    classify(v) {
-      if (v >= 20 && v <= 24) return this.levels[0];
-      if (v >= 18 && v <= 26) return this.levels[1];
-      return this.levels[2];
-    }
-  },
-  {
-    key: 'lux', label: 'Osvetlenie', unit: 'lux',
-    get: d => d.lux.ILL_lux,
-    levels: [
-      { max: 150,      cls: 'bad',  text: 'Slabé',      note: 'Nedostatočné osvetlenie pre čítanie a prácu (min. 300 lux).' },
-      { max: 300,      cls: 'warn', text: 'Postačujúce', note: 'Odporúčané minimum pre školské triedy je 300 lux.' },
-      { max: Infinity, cls: 'ok',   text: 'Dobré',       note: 'Osvetlenie je dostatočné pre prácu a štúdium.' },
-    ]
-  },
-  {
-    key: 'printer', label: 'Bambu P1S', unit: '',
-    get: d => d.pwr,
-    levels: [],
-    classify(v) {
-      const on = v.socket_status === 'on';
-      return on
-        ? { cls: 'warn', text: 'Tlačí / Zapnutá', note: `Aktívny výkon: ${v.active_power} W · Spotreba: ${v.power_consumption} Wh · Napätie: ${v.voltage} V` }
-        : { cls: 'ok',   text: 'Vypnutá',         note: 'Zásuvka je vypnutá. Tlačiareň nespot­rebúva energiu.' };
-    }
-  },
-  {
-    key: 'door', label: 'Dvere', unit: '',
-    get: d => d.door.Exti_pin_level === 'Low' ? 1 : 0,
-    levels: [],
-    classify(v) {
-      return v === 1
-        ? { cls: 'warn', text: 'Otvorené', note: 'Dvere sú momentálne otvorené.' }
-        : { cls: 'ok',   text: 'Zatvorené', note: 'Dvere sú zatvorené.' };
-    }
-  },
+      { max: 300, cls: 'ok', text: 'Dobré' },
+      { max: 500, cls: 'warn', text: 'Stredné', action: 'Zvážte vetranie — organické látky vo vzduchu.' },
+      { max: Infinity, cls: 'bad', text: 'Zlé', action: 'Vetrajte — vysoké TVOC.' },
+    ]},
+  { key: 'temperature', label: 'Teplota', unit: '°C', get: (d) => d.amb && d.amb.temperature,
+    classify: (v) => v >= 20 && v <= 24 ? { cls: 'ok', text: 'Optimálna' }
+      : v >= 18 && v <= 26 ? { cls: 'warn', text: 'Prijateľná' }
+      : { cls: 'bad', text: 'Nevhodná', action: 'Skontrolujte kúrenie / klimatizáciu.' } },
+  { key: 'humidity', label: 'Vlhkosť', unit: '%', get: (d) => d.amb && d.amb.humidity,
+    classify: (v) => v >= 30 && v <= 60 ? { cls: 'ok', text: 'Optimálna' }
+      : v >= 20 && v <= 70 ? { cls: 'warn', text: 'Prijateľná' }
+      : { cls: 'bad', text: 'Nevhodná', action: 'Vlhkosť je mimo rozsahu.' } },
+  { key: 'lux', label: 'Osvetlenie', unit: 'lux', get: (d) => d.lux && d.lux.ILL_lux,
+    classify: (v) => v >= 300 ? { cls: 'ok', text: 'Dobré' }
+      : v >= 150 ? { cls: 'warn', text: 'Slabšie' }
+      : { cls: 'bad', text: 'Nedostatočné', action: 'Zapnite osvetlenie — málo svetla.' } },
 ];
 
-function classifyCheck(check, value) {
-  if (check.classify) return check.classify(value);
-  for (const lvl of check.levels) if (value < lvl.max) return lvl;
+function classify(check, v) {
+  if (v == null) return { cls: 'warn', text: '—' };
+  if (check.classify) return check.classify(v);
+  for (const lvl of check.levels) if (v < lvl.max) return lvl;
   return check.levels[check.levels.length - 1];
 }
 
-async function fetchReport() {
-  try {
-    const [rAmb, rLux, rDoor, rPwr] = await Promise.all([
-      fetch(`https://projekttb.sksnr.sk/data/api.php?source=1&sort=timestamp&dir=desc&limit=1`, { headers: AUTH_HDR }),
-      fetch(`https://projekttb.sksnr.sk/data/api.php?source=3&sort=timestamp&dir=desc&limit=1`, { headers: AUTH_HDR }),
-      fetch(`https://projekttb.sksnr.sk/data/api.php?source=8&sort=timestamp&dir=desc&limit=1`, { headers: AUTH_HDR }),
-      fetch(`https://projekttb.sksnr.sk/data/api.php?source=2&sort=timestamp&dir=desc&limit=1`, { headers: AUTH_HDR }),
-    ]);
-    const data = {
-      amb:  (await rAmb.json()).rows[0],
-      lux:  (await rLux.json()).rows[0],
-      door: (await rDoor.json()).rows[0],
-      pwr:  (await rPwr.json()).rows[0],
-    };
-
-    document.getElementById('r-updated').textContent = 'Aktualizované: ' + data.amb.timestamp;
-
-    const actions = [];
-    let html = '';
-
-    for (const check of CHECKS) {
-      const val = check.get(data);
-      const lvl = classifyCheck(check, val);
-      const display = check.key === 'door' ? (val === 1 ? 'Otvorené' : 'Zatvorené') : fmt(val, check.key === 'tvoc' ? 2 : check.key === 'temperature' ? 1 : 0) + (check.unit ? ' ' + check.unit : '');
-
-      html += `<div class="report-row">
-        <div class="r-name">${check.label}</div>
-        <div class="r-value">${display}</div>
-        <div class="r-status ${lvl.cls}"><div class="r-dot ${lvl.cls}"></div>${lvl.text}</div>
-        <div class="r-note">${lvl.note}</div>
-      </div>`;
-
-      if (lvl.cls === 'bad' && check.key === 'co2') actions.push('Okamžite otvorte okná a vyvetrajte miestnosť');
-      if (lvl.cls === 'warn' && check.key === 'co2') actions.push('Zvážte otvorenie okien — CO₂ stúpa');
-      if (lvl.cls === 'bad' && check.key === 'tvoc') actions.push('Vetrajte — vysoké organické látky vo vzduchu');
-      if (lvl.cls === 'bad' && check.key === 'lux') actions.push('Zapnite osvetlenie — hladina svetla je nedostatočná');
-      if (lvl.cls === 'bad' && check.key === 'temperature') actions.push('Skontrolujte kúrenie / klimatizáciu');
-    }
-
-    document.getElementById('report-rows').innerHTML = html;
-
-    const actionBox = document.getElementById('report-action');
-    if (actions.length) {
-      actionBox.innerHTML = `<h4>Odporúčané opatrenia</h4><ul>${actions.map(a => `<li>${a}</li>`).join('')}</ul>`;
-      actionBox.style.display = '';
-    } else {
-      actionBox.innerHTML = `<h4>Stav</h4><ul><li>Všetky hodnoty sú v norme. Nie sú potrebné žiadne opatrenia.</li></ul>`;
-      actionBox.style.borderLeftColor = '#2d6a4f';
-      actionBox.style.background = 'rgba(45,106,79,.04)';
-      actionBox.style.display = '';
-    }
-  } catch(e) { console.error('report', e); }
+function renderStatusStrip(data) {
+  const html = CHECKS.map((c) => {
+    const v = c.get(data);
+    const lvl = classify(c, v);
+    const dec = c.key === 'temperature' ? 1 : 0;
+    const disp = v == null ? '—' : fmt(v, dec) + ' ' + c.unit;
+    return `<div class="status-item">
+      <div class="si-top"><span class="si-dot ${lvl.cls}"></span><span class="si-name">${c.label}</span></div>
+      <div class="si-val">${disp}</div>
+      <div class="si-state ${lvl.cls}">${lvl.text}</div>
+    </div>`;
+  }).join('');
+  setHTML('it-status', html);
+  const { worst, actions } = evaluateChecks(data);
+  updateAlertBanner(worst, actions);
 }
 
-// Tab switching
-document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    const id = tab.dataset.tab;
-    document.querySelectorAll('#tab-nitra, #tab-skola, #tab-report, #tab-kamery').forEach(el => el.style.display = 'none');
-    document.getElementById('tab-' + id).style.display = '';
-    if (id === 'skola') fetchSkola();
-    if (id === 'report') fetchReport();
+/* Run every check against a data bundle → { worst, actions } */
+function evaluateChecks(data) {
+  const actions = [];
+  let worst = 'ok';
+  for (const c of CHECKS) {
+    const lvl = classify(c, c.get(data));
+    if (lvl.action) actions.push(lvl.action);
+    if (lvl.cls === 'bad') worst = 'bad';
+    else if (lvl.cls === 'warn' && worst !== 'bad') worst = 'warn';
+  }
+  return { worst, actions };
+}
+
+/* Global alert banner — dismissing only hides the CURRENT alert. If the situation
+   changes or escalates (different signature), the banner re-appears automatically. */
+let alertDismissed = false;
+let lastAlertSig = '';
+function updateAlertBanner(worst, actions) {
+  const banner = $('alert-banner');
+  if (!banner) return;
+  const sig = worst + '|' + actions.join('|');
+  if (sig !== lastAlertSig) { alertDismissed = false; lastAlertSig = sig; }
+  if (worst === 'ok' || !actions.length || alertDismissed) { banner.hidden = true; return; }
+  banner.hidden = false;
+  banner.classList.toggle('warn', worst === 'warn');
+  setText('alert-text', actions.join('  ·  '));
+}
+$('alert-close').addEventListener('click', () => { alertDismissed = true; $('alert-banner').hidden = true; });
+
+/* Lightweight always-on poller so the global banner is live on EVERY screen
+   (only 2 requests — latest ambient + lux). */
+async function refreshAlerts() {
+  try {
+    const [amb, lux] = await Promise.all([latestRow(SRC.ambient), latestRow(SRC.lux)]);
+    const { worst, actions } = evaluateChecks({ amb, lux });
+    updateAlertBanner(worst, actions);
+  } catch (e) { /* silent — header dot already reflects connection errors */ }
+}
+
+function renderIT(data) {
+  const { amb, pwr, lux, door } = data;
+
+  // Ambient
+  if (amb) {
+    setText('it-temp', fmt(amb.temperature));
+    setText('it-hum', fmt(amb.humidity, 0));
+    setText('it-co2', fmt(amb.co2, 0));
+    setText('it-tvoc', fmt(amb.tvoc, 0));
+    setText('it-pres', fmt(amb.pressure, 0));
+    setText('it-pir', amb.pir === 'idle' ? 'Pokoj' : (amb.pir || '—'));
+    setText('it-bat', 'Batéria: ' + fmt(amb.battery, 0) + ' %');
+  }
+
+  // Power meter
+  if (pwr) {
+    const on = pwr.socket_status === 'on';
+    const st = $('it-pwr-status');
+    setText('it-pwr-status', on ? 'ZAPNUTÁ' : 'VYPNUTÁ');
+    if (st) st.classList.toggle('crimson', on);
+    setText('it-pwr-power', fmt(pwr.active_power, 0) + ' W aktívny výkon');
+    setText('it-pwr-volt', fmt(pwr.voltage, 1) + ' V');
+    setText('it-pwr-cons', fmt(pwr.power_consumption, 0) + ' Wh');
+    setText('it-pwr-cons-kwh', fmt(pwr.power_consumption / 1000, 2) + ' kWh celkovo');
+    setText('it-pwr-pf', fmt(pwr.power_factor, 0) + ' %');
+    setText('it-pwr-cur', fmt(pwr.current, 0) + ' mA prúd');
+  }
+
+  // Lux
+  if (lux) {
+    setText('it-lux', fmt(lux.ILL_lux, 0));
+    setText('it-lux-bat', 'Batéria: ' + fmt(lux.BatV, 2) + ' V');
+  }
+
+  renderStatusStrip(data);
+}
+
+/* Door sensor 5 — state + openings history.
+   Convention (matches v1): Exti_pin_level "Low" = OTVORENÉ, "High" = ZATVORENÉ. */
+const isDoorOpen = (row) => row && row.Exti_pin_level === 'Low';
+
+function renderDoor(rows) {
+  if (!rows.length) return;
+  const latest = rows[rows.length - 1];
+  const open = isDoorOpen(latest);
+  const badge = $('it-door-state');
+  setText('it-door-state', open ? 'OTVORENÉ' : 'ZATVORENÉ');
+  if (badge) badge.classList.toggle('open', open);
+  setText('it-door-time', 'Posledná zmena: ' + prettyStamp(latest.timestamp));
+  setText('it-door-bat', 'Batéria: ' + fmt(latest.BatV, 2) + ' V');
+
+  // Count openings today (transition into "open"). Use LOCAL date to match sensor time.
+  const today = localToday();
+  let openings = 0;
+  for (let i = 1; i < rows.length; i++) {
+    if (isDoorOpen(rows[i]) && !isDoorOpen(rows[i - 1]) && rows[i].timestamp.startsWith(today)) openings++;
+  }
+  setText('it-door-count', String(openings));
+
+  // Events list (newest first)
+  const evHtml = rows.slice().reverse().slice(0, 40).map((r) => {
+    const o = isDoorOpen(r);
+    return `<li>
+      <span class="ev-dot ${o ? 'open' : 'close'}"></span>
+      <span class="ev-state">${o ? 'Otvorené' : 'Zatvorené'}</span>
+      <span class="ev-time">${prettyStamp(r.timestamp)}</span>
+    </li>`;
+  }).join('');
+  setHTML('door-events', evHtml);
+
+  // Stepped chart (door events can span days → keep the date in the labels)
+  const p = palette();
+  makeChart('ch-door', {
+    type: 'line',
+    data: { labels: rows.map(r => timeLabel(r.timestamp, 168)), datasets: [{
+      label: 'Dvere', unit: '', data: rows.map(r => isDoorOpen(r) ? 1 : 0),
+      borderColor: p.crimson, backgroundColor: hexA(p.crimson, 0.12),
+      stepped: true, fill: true, pointRadius: 2, pointBackgroundColor: p.crimson, borderWidth: 1.5,
+    }]},
+    options: { ...baseOptions(), scales: { ...baseOptions().scales,
+      y: { ...baseOptions().scales.y, min: -0.1, max: 1.1,
+        ticks: { color: palette().text, font: { family: 'IBM Plex Mono', size: 9 },
+          callback: (v) => v === 1 ? 'Otvor.' : v === 0 ? 'Zatv.' : '' } } } },
   });
+
+  registerExport('door', ['timestamp', 'state', 'pin_level', 'battery_V', 'temp_C', 'hum_%'],
+    rows.slice().reverse().map(r => [r.timestamp, isDoorOpen(r) ? 'open' : 'closed', r.Exti_pin_level, r.BatV, r.TempC_SHT, r.Hum_SHT]));
+}
+
+function buildITCharts(ambSeries, luxSeries, pwrSeries) {
+  const p = palette();
+  const aLabels = ambSeries.map(r => timeLabel(r.timestamp, itHours));
+
+  makeChart('ch-co2', { type: 'line',
+    data: { labels: aLabels, datasets: [ lineDS('CO₂', ambSeries.map(r => r.co2), p.crimson, { unit: 'ppm', fill: true }) ]},
+    options: baseOptions({ unit: 'ppm' }) });
+
+  makeChart('ch-tvoc', { type: 'line',
+    data: { labels: aLabels, datasets: [ lineDS('TVOC', ambSeries.map(r => r.tvoc), p.navy, { unit: 'ppb', fill: true }) ]},
+    options: baseOptions({ unit: 'ppb' }) });
+
+  makeChart('ch-it-th', { type: 'line',
+    data: { labels: aLabels, datasets: [
+      lineDS('Teplota', ambSeries.map(r => r.temperature), p.crimson, { unit: '°C', fill: true, axis: 'y' }),
+      lineDS('Vlhkosť', ambSeries.map(r => r.humidity), p.navy, { unit: '%', dash: [4, 3], axis: 'y2' }),
+    ]},
+    options: baseOptions({ dual: true }) });
+
+  makeChart('ch-lux', { type: 'line',
+    data: { labels: luxSeries.map(r => timeLabel(r.timestamp, itHours)), datasets: [ lineDS('Lux', luxSeries.map(r => r.ILL_lux), p.navy, { unit: 'lux', fill: true }) ]},
+    options: baseOptions({ unit: 'lux' }) });
+
+  makeChart('ch-power', { type: 'line',
+    data: { labels: pwrSeries.map(r => timeLabel(r.timestamp, itHours)), datasets: [ lineDS('Výkon', pwrSeries.map(r => r.active_power), p.crimson, { unit: 'W', fill: true }) ]},
+    options: baseOptions({ unit: 'W' }) });
+
+  registerExport('ambient', ['timestamp', 'co2', 'tvoc', 'temperature', 'humidity', 'pressure', 'pir'],
+    ambSeries.map(r => [r.timestamp, r.co2, r.tvoc, r.temperature, r.humidity, r.pressure, r.pir]));
+}
+
+async function refreshIT() {
+  markLoading('tab-it');
+  try {
+    const [amb, pwr, lux, doorSeries, ambSeries, luxSeries, pwrSeries] = await Promise.all([
+      latestRow(SRC.ambient),
+      latestRow(SRC.power),
+      latestRow(SRC.lux),
+      apiSeries(SRC.door5, 60),
+      seriesForHours(SRC.ambient, itHours, CAD.ambient),
+      seriesForHours(SRC.lux, itHours, CAD.lux),
+      seriesForHours(SRC.power, itHours, CAD.power),
+    ]);
+    const door = doorSeries[doorSeries.length - 1];
+    renderIT({ amb, pwr, lux, door });
+    renderDoor(doorSeries);
+    buildITCharts(ambSeries, luxSeries, pwrSeries);
+    setUpdated('it-updated', amb ? amb.timestamp : null, 40, 'Aktualizované: ');
+    showError('it-error', null);
+    setOnline(true);
+  } catch (e) {
+    console.error('it', e);
+    showError('it-error', 'Nepodarilo sa načítať dáta triedy IT: ' + e.message);
+    setOnline(false);
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   TAB MANAGEMENT + POLLING (only the active tab polls)
+   ════════════════════════════════════════════════════════════════ */
+const TAB_REFRESH = { domov: refreshDomov, skola: refreshSkola, it: refreshIT };
+let pollTimer = null;
+let currentTab = 'domov';
+
+function showTab(name) {
+  currentTab = name;
+  document.querySelectorAll('.tab').forEach((t) => {
+    const on = t.dataset.tab === name;
+    t.classList.toggle('active', on);
+    t.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  document.querySelectorAll('.tab-panel').forEach((p) => { p.hidden = p.id !== 'tab-' + name; });
+
+  if (pollTimer) clearInterval(pollTimer);
+  const fn = TAB_REFRESH[name];
+  fn();
+  pollTimer = setInterval(fn, POLL[name]);
+}
+
+document.querySelectorAll('.tab').forEach((tab) => {
+  tab.addEventListener('click', () => showTab(tab.dataset.tab));
 });
 
-fetchReport();
-setInterval(fetchReport, 30_000);
+/* Range selectors — one per tab (weather / škola / trieda IT) */
+function wireRange(range, onChange) {
+  const bar = document.querySelector(`.range-bar[data-range="${range}"]`);
+  if (!bar) return;
+  bar.querySelectorAll('.range-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      bar.querySelectorAll('.range-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      onChange(parseInt(btn.dataset.hours, 10));
+    });
+  });
+}
+wireRange('weather', (h) => { weatherHours = h; refreshWeather(); });
+wireRange('skola',   (h) => { skolaHours = h; refreshSkola(); });
+wireRange('it',      (h) => { itHours = h; refreshIT(); });
 
-fetchSkola();
-setInterval(fetchSkola, 10_000);
+/* Manual refresh buttons */
+function wireRefresh(btnId, fn) {
+  const b = $(btnId);
+  if (!b) return;
+  b.addEventListener('click', () => { b.classList.remove('spin'); void b.offsetWidth; b.classList.add('spin'); fn(); });
+}
+wireRefresh('domov-refresh', refreshDomov);
+wireRefresh('cam-refresh', refreshCameras);
+wireRefresh('skola-refresh', refreshSkola);
+wireRefresh('it-refresh', refreshIT);
+
+/* Theme toggle — persist + re-render active charts so they recolor */
+function applyTheme(dark) {
+  document.body.classList.toggle('dark', dark);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#0A1A28' : '#355B7A');
+  const btn = $('theme-toggle');
+  if (btn) {
+    btn.textContent = dark ? '☀' : '☾';                       // show the mode you'd switch TO
+    const title = dark ? 'Prepnúť svetlý režim' : 'Prepnúť tmavý režim';
+    btn.title = title; btn.setAttribute('aria-label', title);
+  }
+}
+$('theme-toggle').addEventListener('click', () => {
+  const dark = !document.body.classList.contains('dark');
+  applyTheme(dark);
+  localStorage.setItem('theme', dark ? 'dark' : 'light');
+  // Re-render charts so they recolor — but only when the full dashboard is visible.
+  if (!document.body.classList.contains('easy') && TAB_REFRESH[currentTab]) TAB_REFRESH[currentTab]();
+});
+applyTheme(localStorage.getItem('theme') === 'dark');
+
+/* ════════════════════════════════════════════════════════════════
+   JEDNODUCHÝ REŽIM — glance view (headline numbers + cameras only)
+   Reuses the same health checks + camera loader as the full dashboard.
+   ════════════════════════════════════════════════════════════════ */
+let easyTimer = null;
+const easyCheck = (key) => CHECKS.find((c) => c.key === key);
+
+function setEasyTile(tileId, valueId, stateId, key, value, unit, dec) {
+  setText(valueId, value == null ? '—' : fmt(value, dec) + (unit ? ' ' + unit : ''));
+  const lvl = value == null ? { cls: '', text: '—' } : classify(easyCheck(key), value);
+  setText(stateId, lvl.text);
+  const st = $(stateId); if (st) st.className = 'et-state ' + lvl.cls;
+  const tile = $(tileId);
+  if (tile) { tile.classList.remove('ok', 'warn', 'bad'); if (lvl.cls) tile.classList.add(lvl.cls); }
+}
+
+async function refreshEasy() {
+  EASY_CAMERAS.forEach(refreshOneCamera);
+  try {
+    const [w, amb] = await Promise.all([latestRow(SRC.weather), latestRow(SRC.ambient)]);
+    if (w) {
+      setText('e-out-temp', fmt(w.temperature) + ' °C');
+      setText('e-out-sub', 'Pocitová ' + fmt(w.feels_like) + ' °C · Vlhkosť ' + fmt(w.humidity, 0) + ' %');
+    }
+    if (amb) {
+      setEasyTile('etile-temp', 'e-in-temp', 'e-in-temp-state', 'temperature', amb.temperature, '°C', 1);
+      setEasyTile('etile-co2',  'e-co2',     'e-co2-state',     'co2',         amb.co2,        'ppm', 0);
+      setEasyTile('etile-hum',  'e-hum',     'e-hum-state',     'humidity',    amb.humidity,   '%',  0);
+    }
+    setUpdated('easy-updated', amb ? amb.timestamp : (w ? w.timestamp : null), 40, 'Aktualizované: ');
+    setOnline(true);
+  } catch (e) {
+    console.error('easy', e);
+    setOnline(false);
+  }
+}
+
+function applyEasy(on) {
+  document.body.classList.toggle('easy', on);
+  const btn = $('easy-toggle');
+  if (btn) {
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.textContent = on ? '▦ Plný režim' : '◱ Jednoduchý';
+    btn.title = on ? 'Plný režim' : 'Jednoduchý režim';
+  }
+  localStorage.setItem('easy', on ? '1' : '0');
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  if (easyTimer) { clearInterval(easyTimer); easyTimer = null; }
+  if (on) {
+    refreshEasy();
+    easyTimer = setInterval(refreshEasy, 30_000);
+  } else {
+    showTab(currentTab);   // restore the full dashboard + its poller
+  }
+}
+$('easy-toggle').addEventListener('click', () => applyEasy(!document.body.classList.contains('easy')));
+
+/* ── Boot ── */
+window.addEventListener('DOMContentLoaded', () => {
+  const hasChart = typeof Chart !== 'undefined';
+  if (hasChart) Chart.defaults.font.family = 'IBM Plex Mono';
+  else showError('domov-error', 'Knižnica grafov sa nenačítala (skontrolujte pripojenie na internet).');
+
+  if (hasChart) showTab('domov');                                  // full dashboard needs charts
+  if (localStorage.getItem('easy') === '1') applyEasy(true);       // glance view works without them
+
+  // Global environment-alert poller — independent of the active view.
+  refreshAlerts();
+  setInterval(refreshAlerts, 60_000);
+});
+
 </script>
 
 </body>
